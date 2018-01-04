@@ -8,18 +8,22 @@ Inherits TestGroup
 		  dim key as string = "key:__rand_int__"
 		  dim data as string = "xxx"
 		  
-		  const kReps as integer = 100000
-		  
 		  dim sw as new Stopwatch_MTC
-		  for i as integer = 1 to kReps
+		  dim reps as integer
+		  
+		  do 
+		    if sw.ElapsedSeconds >= 1.0 then
+		      exit
+		    end if
 		    sw.Start
 		    call r.Set( key, data )
 		    sw.Stop
-		  next
+		    reps = reps + 1
+		  loop
 		  
 		  r.Delete key
 		  
-		  Assert.Pass format( kReps, "#,0" ).ToText + " reps took " + format( sw.ElapsedMilliseconds, "#,0.0##" ).ToText + " ms"
+		  Assert.Pass format( reps, "#,0" ).ToText + " reps took " + format( sw.ElapsedMilliseconds, "#,0.0##" ).ToText + " ms"
 		End Sub
 	#tag EndMethod
 

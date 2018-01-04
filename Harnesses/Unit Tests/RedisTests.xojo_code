@@ -3,6 +3,8 @@ Protected Class RedisTests
 Inherits TestGroup
 	#tag Event
 		Sub Setup()
+		  self.Redis = nil
+		  
 		  dim r as Redis_MTC
 		  
 		  #pragma BreakOnExceptions false
@@ -92,6 +94,55 @@ Inherits TestGroup
 		  
 		  Assert.IsTrue r.Set( "xut:key2", "another" )
 		  Assert.AreEqual 2, r.Exists( "xut:key", "xut:key2", "xut:key3" )
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub ExpireAtTest()
+		  dim d as new Date
+		  d.TotalSeconds = d.TotalSeconds + 1.0
+		  
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.Set( "xut:key1", "value" )
+		  r.ExpireAt "xut:key1", d
+		  Assert.IsTrue r.Exists( "xut:key1" ), "Key should exist"
+		  Pause 1010
+		  Assert.IsFalse r.Exists( "xut:key1" ), "Key should not exist"
+		  
+		  #pragma BreakOnExceptions false
+		  try
+		    r.ExpireAt "xut:key1", d
+		    Assert.Fail "Key should have expired"
+		  catch err as KeyNotFoundException
+		    Assert.Pass "Unknown key"
+		  end try
+		  #pragma BreakOnExceptions default
+		  
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub ExpireTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.Set( "xut:key1", "value" )
+		  r.Expire "xut:key1", 10
+		  Assert.IsTrue r.Exists( "xut:key1" ), "Key should exist"
+		  Pause 15
+		  Assert.IsFalse r.Exists( "xut:key1" ), "Key should not exist"
+		  
+		  #pragma BreakOnExceptions false
+		  try
+		    r.Expire "xut:key1", 1
+		    Assert.Fail "Key should have expired"
+		  catch err as KeyNotFoundException
+		    Assert.Pass "Unknown key"
+		  end try
+		  #pragma BreakOnExceptions default
+		  
+		  
 		End Sub
 	#tag EndMethod
 
@@ -277,6 +328,75 @@ Inherits TestGroup
 		  Assert.IsTrue r.Set( "xut:key", "other", 0, Redis_MTC.SetMode.IfExists )
 		End Sub
 	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub ThreadTest()
+		  dim r as new Redis_MTC
+		  Redis = r
+		  
+		  dim t as new Thread
+		  AddHandler t.Run, WeakAddressOf ThreadTestRun
+		  t.Run
+		  while t.State = Thread.NotRunning
+		    App.YieldToNextThread
+		  wend
+		  
+		  while t.State <> Thread.NotRunning
+		    Assert.IsTrue r.Set( "xut:threadtestkey", "main" )
+		  wend
+		  
+		  RemoveHandler t.Run, WeakAddressOf ThreadTestRun
+		  
+		  r.Delete "xut:threadtestkey"
+		  
+		  Redis = nil
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub ThreadTestRun(sender As Thread)
+		  #pragma unused sender
+		  
+		  dim r as Redis_MTC = Redis
+		  
+		  dim targetMs as double = Microseconds + 500000
+		  while Microseconds <= targetMs
+		    Assert.IsTrue r.Set( "xut:threadtestkey", "value" ), "Thread"
+		  wend
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub TimeToLiveTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.Set( "xut:key1", "value", 60 )
+		  Assert.AreEqual 60, r.TimeToLiveMs( "xut:key1" )
+		  r.Delete "xut:key1"
+		  
+		  #pragma BreakOnExceptions false
+		  try
+		    call r.TimeToLiveMs( "xut:key1" )
+		    Assert.Fail "Key should not exist"
+		  catch err as KeyNotFoundException
+		    Assert.Pass "Unknown key"
+		  end try
+		  #pragma BreakOnExceptions default
+		  
+		  Assert.IsTrue r.Set( "xut:key1", "value" )
+		  Assert.AreEqual -1, r.TimeToLiveMs( "xut:key1" )
+		  
+		  r.Delete "xut:key1"
+		  
+		End Sub
+	#tag EndMethod
+
+
+	#tag Property, Flags = &h21
+		Private Redis As Redis_MTC
+	#tag EndProperty
 
 
 	#tag ViewBehavior

@@ -2,39 +2,9 @@
 Class Redis_MTC
 	#tag Method, Flags = &h0
 		Sub Auth(pw As String)
-		  dim cmd as string = BuildArray( "AUTH", pw )
-		  call Perform( cmd )
+		  call Execute( "AUTH", pw )
 		  
 		End Sub
-	#tag EndMethod
-
-	#tag Method, Flags = &h21
-		Private Function BuildArray(ParamArray parts() As String) As String
-		  return BuildArray( parts )
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h21
-		Private Function BuildArray(parts() As String) As String
-		  dim raw() as string
-		  raw.Append "*"
-		  raw.Append str( parts.Ubound + 1 )
-		  raw.Append EOL
-		  
-		  for i as integer = 0 to parts.Ubound
-		    dim part as string = parts( i )
-		    raw.Append "$"
-		    raw.Append str( part.LenB )
-		    raw.Append EOL
-		    raw.Append part
-		    if i < parts.Ubound then
-		      raw.Append EOL
-		    end if
-		  next
-		  
-		  return join( raw, "" )
-		  
-		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -43,8 +13,7 @@ Class Redis_MTC
 		    pattern = "*"
 		  end if
 		  
-		  dim cmd as string = BuildArray( "CONFIG", "GET", pattern )
-		  dim arr() as variant = Perform( cmd )
+		  dim arr() as variant = Execute( "CONFIG", "GET", pattern )
 		  
 		  dim r as new Dictionary
 		  for i as integer = 0 to arr.Ubound step 2
@@ -58,8 +27,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Sub ConfigSet(parameter As String, value As String)
-		  dim cmd as string = BuildArray( "CONFIG", "SET", parameter, value )
-		  call Perform( cmd )
+		  call Execute( "CONFIG", "SET", parameter, value )
 		  
 		  if parameter = kConfigRequirePass and value <> "" then
 		    Auth value
@@ -82,7 +50,6 @@ Class Redis_MTC
 		  Socket = new TCPSocket
 		  Socket.Address = host
 		  Socket.Port = port
-		  AddHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
 		  
 		  Socket.Connect
 		  dim startMs as double = Microseconds
@@ -141,8 +108,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Sub Delete(key As String)
-		  dim cmd as string = CommandDelete + " " + Escape( key )
-		  call Perform( cmd )
+		  call Execute( CommandDelete, key )
 		  
 		End Sub
 	#tag EndMethod
@@ -162,7 +128,6 @@ Class Redis_MTC
 		Private Sub Destructor()
 		  if Socket isa object then
 		    Socket.Close
-		    RemoveHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
 		    Socket = nil
 		  end if
 		  
@@ -215,13 +180,54 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function Execute(command As String, parameters() As String) As Variant
-		  dim parts() as string = array( command.Trim )
-		  for i as integer = 0 to parameters.Ubound
-		    parts.Append parameters( i )
-		  next
+		  static eol as string = self.EOL
 		  
-		  dim cmd as string = BuildArray( parts )
-		  return Perform( cmd )
+		  dim cmd as string = command
+		  
+		  if parameters is nil or parameters.Ubound = -1 then
+		    
+		    cmd = cmd + eol
+		    
+		  else
+		    
+		    dim arrCount as integer = parameters.Ubound + 2
+		    dim raw() as string
+		    raw.Append "*"
+		    raw.Append str( arrCount )
+		    raw.Append eol
+		    
+		    raw.Append "$"
+		    raw.Append str( command.LenB )
+		    raw.Append eol
+		    raw.Append command
+		    raw.Append eol
+		    
+		    for i as integer = 0 to parameters.Ubound
+		      dim p as string = parameters( i )
+		      raw.Append "$"
+		      raw.Append str( p.LenB )
+		      raw.Append eol
+		      raw.Append p
+		      raw.Append eol
+		    next
+		    
+		    cmd = join( raw, "" )
+		    
+		  end if
+		  
+		  dim h as new SemaphoreHolder( CommandSemaphore )
+		  
+		  Socket.Write cmd
+		  
+		  dim r as variant = GetReponse
+		  h = nil
+		  
+		  if r.Type = Variant.TypeObject and r isa RedisError then
+		    RaiseException 0, RedisError( r ).Message
+		  end if
+		  
+		  return r
+		  
 		End Function
 	#tag EndMethod
 
@@ -233,22 +239,49 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function Exists(key As String) As Boolean
-		  dim cmd as string = BuildArray( "EXISTS", key )
-		  dim r as integer = Perform( cmd )
+		  dim r as integer = Execute( "EXISTS", key )
 		  return r <> 0
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function Exists(key1 As String, key2 As String, ParamArray moreKeys() As String) As Integer
-		  dim parts() as string = array( "EXISTS", key1, key2 )
+		  dim parts() as string = array( key1, key2 )
 		  for each key as string in moreKeys
 		    parts.Append key
 		  next
 		  
-		  dim cmd as string = BuildArray( parts )
-		  return Perform( cmd ).IntegerValue
+		  return Execute( "EXISTS", parts ).IntegerValue
 		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub Expire(key As String, milliseconds As Integer)
+		  dim r as variant = Execute( "PEXPIRE", key, str( milliseconds ) )
+		  if r.IntegerValue = 0 then
+		    raise new KeyNotFoundException
+		  end if
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub ExpireAt(key As String, target As Date)
+		  static baseDate as Date
+		  if baseDate is nil then
+		    baseDate = new Date( 1970, 1, 1 )
+		    baseDate.TotalSeconds = baseDate.TotalSeconds + ( baseDate.GMTOffset * 60.0 * 60.0 )
+		    baseDate.GMTOffset = 0
+		  end if
+		  
+		  dim unixTimestamp as Int64 = target.TotalSeconds - baseDate.TotalSeconds - ( target.GMTOffset * 60.0 * 60.0 )
+		  
+		  dim r as variant = Execute( "EXPIREAT", key, str( unixTimestamp ) )
+		  if r.IntegerValue = 0 then
+		    raise new KeyNotFoundException
+		  end if
+		  
+		End Sub
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -256,7 +289,7 @@ Class Redis_MTC
 		  if CommandFlushAll = "" then
 		    CommandFlushAll = "FLUSHALL" + if( MajorVersion >= 4, " ASYNC", "" )
 		  end if
-		  call Perform( CommandFlushAll )
+		  call Execute( CommandFlushAll )
 		  
 		End Sub
 	#tag EndMethod
@@ -266,15 +299,14 @@ Class Redis_MTC
 		  if CommandFlushDB = "" then
 		    CommandFlushDB = "FLUSHDB" + if( MajorVersion >= 4, " ASYNC", "" )
 		  end if
-		  call Perform( CommandFlushDB )
+		  call Execute( CommandFlushDB, nil )
 		  
 		End Sub
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function Get(key As String) As String
-		  dim cmd as string = BuildArray( "GET", key )
-		  dim value as variant = Perform( cmd )
+		  dim value as variant = Execute( "GET", key )
 		  if value.IsNull then
 		    raise new KeyNotFoundException
 		  else
@@ -286,15 +318,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function GetMultiple(ParamArray keys() As String) As Variant()
-		  dim parts() as string = array( "MGET" )
-		  
-		  for i as integer = 0 to keys.Ubound
-		    dim key as string = keys( i )
-		    parts.Append key
-		  next i
-		  
-		  dim cmd as string = BuildArray( parts )
-		  dim arr() as variant = Perform( cmd )
+		  dim arr() as variant = Execute( "MGET", keys )
 		  return arr
 		  
 		End Function
@@ -302,31 +326,37 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h21
 		Private Function GetReponse() As Variant
+		  const kDebug as boolean = DebugBuild and false
+		  
 		  #if DebugBuild then
 		    const kWaitMs = 60.0 * 1000000.0
 		  #else
 		    const kWaitMs = 0.5 * 1000000.0
 		  #endif
 		  
+		  #if kDebug then
+		    dim sw as new Stopwatch_MTC
+		    sw.Start
+		  #endif
+		  
 		  dim raw as string
 		  
-		  dim t as Thread = App.CurrentThread
-		  CurrentThread = t
+		  dim targetMs as double = Microseconds + kWaitMs
 		  
-		  if t is nil then
-		    dim startMs as double = Microseconds
-		    
-		    do
-		      Socket.Poll
-		      raw = raw + Socket.ReadAll
-		    loop until raw.RightB( EOL.LenB ) = EOL or ( Microseconds - startMs ) > kWaitMs
-		    
-		  else
-		    
-		    t.Sleep kWaitMs / 1000.0, true
-		    raw = Socket.ReadAll
-		    
-		  end if
+		  do
+		    Socket.Poll
+		  loop until Socket.BytesAvailable <> 0 or Microseconds > targetMs
+		  
+		  raw = Socket.ReadAll
+		  
+		  #if kDebug then
+		    sw.Stop
+		    dim logMsg as string = CurrentMethodName + ": Response took " + format( sw.ElapsedMicroseconds, "#,0" ) + " microsecs"
+		    if App.CurrentThread isa object then
+		      logMsg = logMsg + ", thread id " + str( App.CurrentThread.ThreadID )
+		    end if
+		    System.DebugLog logMsg
+		  #endif
 		  
 		  if LastErrorCode <> 0 then
 		    RaiseException LastErrorCode, "Unknown error"
@@ -345,8 +375,11 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function Info(section As String = "") As String
-		  dim cmd as string = "INFO" + if( section <> "", " " + section, "" )
-		  return Perform( cmd ).StringValue
+		  if section = "" then
+		    return Execute( "INFO", nil ).StringValue
+		  else
+		    return Execute( "INFO", section ).StringValue
+		  end if
 		  
 		End Function
 	#tag EndMethod
@@ -366,7 +399,8 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h21
 		Private Function InterpretResponse(s As String, ByRef pos As Integer) As Variant
-		  static eolLen as integer = EOL.LenB
+		  static eol as string = self.EOL
+		  static eolLen as integer = eol.LenB
 		  
 		  dim r as variant
 		  
@@ -376,7 +410,7 @@ Class Redis_MTC
 		  end if
 		  
 		  dim firstLine as string
-		  dim eolPos as integer = s.InStrB( pos, EOL )
+		  dim eolPos as integer = s.InStrB( pos, eol )
 		  if eolPos = 0 then
 		    eolPos = s.LenB + 1
 		  end if
@@ -442,8 +476,7 @@ Class Redis_MTC
 		    pattern = "*"
 		  end if
 		  
-		  dim cmd as string = "KEYS " + Escape( pattern )
-		  dim arr() as variant = Perform( cmd )
+		  dim arr() as variant = Execute( "KEYS", pattern )
 		  
 		  dim r() as string
 		  redim r( arr.Ubound )
@@ -456,32 +489,12 @@ Class Redis_MTC
 		End Function
 	#tag EndMethod
 
-	#tag Method, Flags = &h21
-		Private Function Perform(cmd As String) As Variant
-		  dim h as new SemaphoreHolder( CommandSemaphore )
-		  
-		  Socket.Write cmd
-		  Socket.Write EOL
-		  
-		  dim r as variant = GetReponse
-		  h = nil
-		  
-		  if r.Type = Variant.TypeObject and r isa RedisError then
-		    RaiseException 0, RedisError( r ).Message
-		  end if
-		  
-		  return r
-		  
-		End Function
-	#tag EndMethod
-
 	#tag Method, Flags = &h0
 		Function Ping(msg As String = "") As String
 		  if msg = "" then
-		    return Perform( "PING" )
+		    return Execute( "PING", nil )
 		  else
-		    dim cmd as string = BuildArray( "PING", msg )
-		    return Perform( cmd )
+		    return Execute( "PING", msg )
 		  end if
 		  
 		End Function
@@ -499,20 +512,16 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Sub Rename(oldKey As String, newKey As String, errorIfExists As Boolean = False)
-		  dim cmd as string
-		  
 		  if errorIfExists then
 		    
-		    cmd = "RENAMENX " + Escape( oldKey ) + " " + Escape( newKey )
-		    dim cnt as integer = Perform( cmd ).IntegerValue
+		    dim cnt as integer = Execute( "RENAMENX", oldKey, newKey ).IntegerValue
 		    if cnt = 0 then
 		      RaiseException 0, "Key """ + newKey + """ already exists"
 		    end if
 		    
 		  else
 		    
-		    cmd = "RENAME " + Escape( oldKey ) + " " + Escape( newKey )
-		    call Perform( cmd )
+		    call Execute( "RENAME", oldKey, newKey )
 		    
 		  end if
 		  
@@ -521,7 +530,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function Scan(pattern As String = "") As String()
-		  dim parts() as string = array( "0" )
+		  dim parts( 0 ) as string
 		  if pattern <> "" then
 		    parts.Append "MATCH"
 		    parts.Append pattern
@@ -530,16 +539,16 @@ Class Redis_MTC
 		  parts.Append "20"
 		  
 		  dim r() as string
-		  dim cursor as string
+		  dim cursor as string = "0"
 		  
 		  do
+		    parts( 0 ) = cursor
 		    dim arr() as variant = Execute( "SCAN", parts )
 		    cursor = arr( 0 ).StringValue
 		    dim keys() as variant = arr( 1 )
 		    for i as integer = 0 to keys.Ubound
 		      r.Append keys( i )
 		    next
-		    parts( 0 ) = cursor
 		  loop until cursor = "0"
 		  
 		  return r
@@ -548,7 +557,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function Set(key As String, value As String, expireMilliseconds As Integer = 0, mode As SetMode = SetMode.Always) As Boolean
-		  dim parts() as string = array( "SET", key, value )
+		  dim parts() as string = array( key, value )
 		  
 		  if expireMilliseconds > 0 then
 		    parts.Append "PX"
@@ -562,16 +571,10 @@ Class Redis_MTC
 		    parts.Append "NX"
 		  end select
 		  
-		  dim cmd as string = BuildArray( parts )
-		  dim r as variant = Perform( cmd )
+		  dim r as variant = Execute( "SET", parts )
 		  return not r.IsNull
+		  
 		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
-		Sub SetMultiple(ParamArray keyValue() As Pair)
-		  SetMultiple keyValue
-		End Sub
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -588,16 +591,22 @@ Class Redis_MTC
 		End Sub
 	#tag EndMethod
 
-	#tag Method, Flags = &h21
-		Private Sub Socket_DataAvailable(sender As TCPSocket)
-		  #pragma unused sender
+	#tag Method, Flags = &h0
+		Sub SetMultiple(ParamArray keyValue() As Pair)
+		  SetMultiple keyValue
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function TimeToLiveMs(key As String) As Integer
+		  dim r as integer = Execute( "PTTL", key ).IntegerValue
 		  
-		  dim t as Thread = CurrentThread
-		  if t isa Thread and t.State = Thread.Sleeping then
-		    t.Resume
+		  if r = -2 then
+		    raise new KeyNotFoundException
 		  end if
 		  
-		End Sub
+		  return r
+		End Function
 	#tag EndMethod
 
 
@@ -620,29 +629,6 @@ Class Redis_MTC
 	#tag Property, Flags = &h21
 		Private CommandSemaphore As Semaphore
 	#tag EndProperty
-
-	#tag ComputedProperty, Flags = &h21
-		#tag Getter
-			Get
-			  if zCurrentThreadWR is nil then
-			    return nil
-			  else
-			    return Thread( zCurrentThreadWR.Value )
-			  end if
-			  
-			End Get
-		#tag EndGetter
-		#tag Setter
-			Set
-			  if value is nil then
-			    zCurrentThreadWR = nil
-			  else
-			    zCurrentThreadWR = new WeakRef( value )
-			  end if
-			End Set
-		#tag EndSetter
-		Private CurrentThread As Thread
-	#tag EndComputedProperty
 
 	#tag ComputedProperty, Flags = &h21
 		#tag Getter
@@ -690,10 +676,6 @@ Class Redis_MTC
 		#tag EndGetter
 		Version As String
 	#tag EndComputedProperty
-
-	#tag Property, Flags = &h21
-		Attributes( hidden ) Private zCurrentThreadWR As WeakRef
-	#tag EndProperty
 
 	#tag Property, Flags = &h21
 		Attributes( hidden ) Private zVersion As String
