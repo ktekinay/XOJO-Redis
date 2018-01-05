@@ -9,21 +9,18 @@ Inherits TestGroup
 		  dim data as string = "xxx"
 		  
 		  dim sw as new Stopwatch_MTC
-		  dim reps as integer
 		  
-		  do 
-		    if sw.ElapsedSeconds >= 1.0 then
-		      exit
-		    end if
+		  for i as integer = 1 to kReps
 		    sw.Start
 		    call r.Set( key, data )
 		    sw.Stop
-		    reps = reps + 1
-		  loop
+		  next
 		  
 		  r.Delete key
 		  
-		  Assert.Pass format( reps, "#,0" ).ToText + " reps took " + format( sw.ElapsedMilliseconds, "#,0.0##" ).ToText + " ms"
+		  dim avg as double = kReps / sw.ElapsedSeconds
+		  Assert.Pass format( kReps, "#,0" ).ToText + " keys took " + format( sw.ElapsedSeconds, "#,0.0##" ).ToText + "s, avg " + _
+		  format( avg, "#,0.0##" ).ToText + "/s"
 		  
 		End Sub
 	#tag EndMethod
@@ -41,15 +38,10 @@ Inherits TestGroup
 		  dim data as string = "xxx"
 		  
 		  dim sw as new Stopwatch_MTC
-		  dim reps as integer
-		  dim pipecount as integer
+		  dim swFlush as new Stopwatch_MTC
 		  
-		  do 
-		    if sw.ElapsedSeconds >= 1.0 then
-		      reps = reps - pipecount
-		      exit
-		    end if
-		    
+		  dim pipecount as integer
+		  for i as integer = 1 to kReps
 		    sw.Start
 		    call r.Set( key, data )
 		    sw.Stop
@@ -57,19 +49,27 @@ Inherits TestGroup
 		    pipecount = pipecount + 1
 		    if pipecount = kPipelines then
 		      sw.Start
+		      swFlush.Start
 		      call r.FlushPipeline( false )
 		      sw.Stop
-		      pipeCount = 0
+		      swFlush.Stop
+		      pipecount = 0
 		    end if
-		    
-		    reps = reps + 1
-		  loop
+		  next i
 		  
 		  r.Delete key
 		  
-		  Assert.Pass format( reps, "#,0" ).ToText + " reps took " + format( sw.ElapsedMilliseconds, "#,0.0##" ).ToText + " ms"
+		  dim avg as double = kReps / sw.ElapsedSeconds
+		  Assert.Pass format( kReps, "#,0" ).ToText + " keys took " + _
+		  format( sw.ElapsedSeconds, "#,0.0##" ).ToText + "s, avg " + _
+		  format( avg, "#,0.0##" ).ToText + "/s"
+		  Assert.Pass "Flush took " + format( swFlush.ElapsedSeconds, "#,0.0##" ).ToText + "s"
 		End Sub
 	#tag EndMethod
+
+
+	#tag Constant, Name = kReps, Type = Double, Dynamic = False, Default = \"100000", Scope = Private
+	#tag EndConstant
 
 
 	#tag ViewBehavior
