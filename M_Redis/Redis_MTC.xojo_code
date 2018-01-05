@@ -435,36 +435,58 @@ Class Redis_MTC
 		    #endif
 		    
 		    if zIsPipeline then
-		      Pipeline.Append cmd
+		      PipelineIndex = PipelineIndex + 1
+		      if Pipeline.Ubound < PipelineIndex then
+		        redim Pipeline( PipelineIndex * 2 )
+		      end if
+		      Pipeline( PipelineIndex ) = cmd
 		    end if
 		    
 		  else
 		    
-		    dim arrCount as integer = parameters.Ubound + 2
+		    dim redisArrCount as integer = parameters.Ubound + 2
+		    dim trueArrCount as integer = redisArrCount * 2 + 1
+		    
 		    dim raw() as string
+		    dim rawIndex as integer = -1
 		    if zIsPipeline then
 		      raw = Pipeline
+		      while ( PipelineIndex + trueArrCount ) > raw.Ubound
+		        redim raw( raw.Ubound * 2 )
+		      wend
+		      rawIndex = PipelineIndex
+		    else
+		      redim raw( trueArrCount - 1 )
 		    end if
 		    
-		    raw.Append "*" + str( arrCount )
+		    rawIndex = rawIndex + 1
+		    raw( rawIndex ) = "*" + str( redisArrCount )
 		    
-		    raw.Append "$" + str( command.LenB )
-		    raw.Append command
+		    rawIndex = rawIndex + 1
+		    raw( rawIndex ) = "$" + str( command.LenB )
+		    
+		    rawIndex = rawIndex + 1
+		    raw( rawIndex ) = command
 		    
 		    for i as integer = 0 to parameters.Ubound
 		      dim p as string = parameters( i )
-		      raw.Append "$" + str( p.LenB )
-		      raw.Append p
 		      
+		      rawIndex = rawIndex + 1
+		      raw( rawIndex ) = "$" + str( p.LenB )
+		      rawIndex = rawIndex + 1
+		      raw( rawIndex ) = p
 		    next
 		    
-		    if not zIsPipeline then
+		    if zIsPipeline then
+		      PipelineIndex = rawIndex
+		    else
 		      cmd = join( raw, eol )
 		    end if
 		  end if
 		  
 		  if zIsPipeline and not IsFlushingPipeline then
 		    
+		    h = nil
 		    return true
 		    
 		  else
@@ -579,11 +601,16 @@ Class Redis_MTC
 		Function FlushPipeline(stopPipeline As Boolean = True) As Variant()
 		  dim arr() as variant
 		  
-		  if Pipeline.Ubound <> -1 then
+		  if PipelineIndex <> -1 then
+		    dim origUbound as integer = Pipeline.Ubound
+		    
 		    IsFlushingPipeline = true
+		    redim Pipeline( PipelineIndex )
 		    arr = Execute( join( Pipeline, EOL ), nil )
 		    IsFlushingPipeline = false
-		    redim Pipeline( -1 )
+		    
+		    redim Pipeline( origUbound )
+		    PipelineIndex = -1
 		  end if
 		  
 		  zIsPipeline = not stopPipeline
@@ -1100,6 +1127,9 @@ Class Redis_MTC
 	#tag Method, Flags = &h0
 		Sub StartPipeline()
 		  zIsPipeline = true
+		  if Pipeline.Ubound < 100 then
+		    redim Pipeline( 100 )
+		  end if
 		  
 		End Sub
 	#tag EndMethod
@@ -1257,6 +1287,10 @@ Class Redis_MTC
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
+		Private PipelineIndex As Integer = -1
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
 		Private Socket As TCPSocket
 	#tag EndProperty
 
@@ -1383,6 +1417,7 @@ Class Redis_MTC
 			Name="LastCommand"
 			Group="Behavior"
 			Type="String"
+			EditorType="MultiLineEditor"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="LastErrorCode"
