@@ -307,62 +307,77 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function Execute(command As String, ParamArray parameters() As String) As Variant
-		  return Execute( command, parameters )
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
 		Function Execute(command As String, parameters() As String) As Variant
 		  static eol as string = self.EOL
 		  
 		  dim cmd as string = command
 		  
-		  if parameters is nil or parameters.Ubound = -1 then
+		  if IsFlushingPipeline then
+		    //
+		    // cmd is good
+		    //
+		    #if DebugBuild then
+		      cmd = cmd // A place to break
+		    #endif
 		    
-		    cmd = cmd + eol
+		  elseif parameters is nil or parameters.Ubound = -1 then
+		    
+		    #if DebugBuild then
+		      cmd = cmd // A place to break
+		    #endif
 		    
 		  else
 		    
 		    dim arrCount as integer = parameters.Ubound + 2
 		    dim raw() as string
-		    raw.Append "*"
-		    raw.Append str( arrCount )
-		    raw.Append eol
+		    raw.Append "*" + str( arrCount )
 		    
-		    raw.Append "$"
-		    raw.Append str( command.LenB )
-		    raw.Append eol
+		    raw.Append "$" + str( command.LenB )
 		    raw.Append command
-		    raw.Append eol
 		    
 		    for i as integer = 0 to parameters.Ubound
 		      dim p as string = parameters( i )
-		      raw.Append "$"
-		      raw.Append str( p.LenB )
-		      raw.Append eol
+		      raw.Append "$" + str( p.LenB )
 		      raw.Append p
-		      raw.Append eol
+		      
 		    next
 		    
-		    cmd = join( raw, "" )
+		    cmd = join( raw, eol )
 		    
 		  end if
 		  
-		  dim h as new SemaphoreHolder( CommandSemaphore )
-		  
-		  zLastCommand = cmd
-		  Socket.Write cmd
-		  
-		  dim r as variant = GetReponse
-		  h = nil
-		  
-		  if r.Type = Variant.TypeObject and r isa RedisError then
-		    RaiseException 0, RedisError( r ).Message
+		  if zIsPipeline and not IsFlushingPipeline then
+		    
+		    Pipeline.Append cmd
+		    return true
+		    
+		  else
+		    
+		    dim h as new SemaphoreHolder( CommandSemaphore )
+		    
+		    zLastCommand = cmd
+		    
+		    Socket.Write cmd
+		    Socket.Write eol
+		    Socket.Flush
+		    
+		    dim r as variant = GetReponse
+		    h = nil
+		    
+		    if r.Type = Variant.TypeObject and r isa RedisError then
+		      RaiseException 0, RedisError( r ).Message
+		    end if
+		    
+		    return r
+		    
 		  end if
 		  
-		  return r
-		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function Execute(command As String, ParamArray parameters() As String) As Variant
+		  return Execute( command, parameters )
 		End Function
 	#tag EndMethod
 
@@ -434,6 +449,24 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function FlushPipeline(stopPipeline As Boolean = True) As Variant()
+		  dim arr() as variant
+		  
+		  if Pipeline.Ubound <> -1 then
+		    IsFlushingPipeline = true
+		    arr = Execute( join( Pipeline, EOL ), nil )
+		    IsFlushingPipeline = false
+		    redim Pipeline( -1 )
+		  end if
+		  
+		  zIsPipeline = not stopPipeline
+		  
+		  return arr
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function Get(key As String) As String
 		  dim value as variant = Execute( "GET", key )
 		  if value.IsNull then
@@ -472,9 +505,9 @@ Class Redis_MTC
 		  const kDebug as boolean = DebugBuild and false
 		  
 		  #if DebugBuild then
-		    const kWaitMs = 60.0 * 1000000.0
+		    const kWaitTicks as integer = 60 * 60
 		  #else
-		    const kWaitMs = 0.5 * 1000000.0
+		    const kWaitTicks as integer = 60 \ 2
 		  #endif
 		  
 		  #if kDebug then
@@ -484,13 +517,21 @@ Class Redis_MTC
 		  
 		  dim raw as string
 		  
-		  dim targetMs as double = Microseconds + kWaitMs
+		  dim targetTicks as integer = Ticks + kWaitTicks
 		  
-		  do
-		    Socket.Poll
-		  loop until Socket.BytesAvailable <> 0 or Microseconds > targetMs
+		  Socket.Poll
+		  if Socket.BytesAvailable = 0 then
+		    do
+		      for i as integer =  1 to 100
+		        Socket.Poll
+		        if Socket.BytesAvailable <> 0 then
+		          exit do
+		        end if
+		      next
+		    loop until Ticks > targetTicks
+		  end if
 		  
-		  raw = Socket.ReadAll
+		  raw = Socket.ReadAll( Encodings.UTF8 )
 		  
 		  #if kDebug then
 		    sw.Stop
@@ -508,8 +549,21 @@ Class Redis_MTC
 		  else
 		    
 		    dim pos as integer = 1
-		    dim v as variant = InterpretResponse( raw, pos )
-		    return v
+		    if IsFlushingPipeline then
+		      
+		      dim arr() as variant
+		      while pos <= raw.LenB
+		        dim v as Variant = InterpretResponse( raw, pos )
+		        arr.Append v
+		      wend
+		      return arr
+		      
+		    else
+		      
+		      dim v as variant = InterpretResponse( raw, pos )
+		      return v
+		      
+		    end if
 		    
 		  end if
 		  
@@ -573,7 +627,6 @@ Class Redis_MTC
 		  
 		  if pos < 2 then
 		    pos = 1
-		    s = s.DefineEncoding( Encodings.UTF8 )
 		  end if
 		  
 		  dim firstLine as string
@@ -582,55 +635,63 @@ Class Redis_MTC
 		    eolPos = s.LenB + 1
 		  end if
 		  firstLine = s.MidB( pos, eolPos - pos )
-		  dim firstChar as string = firstLine.LeftB( 1 )
 		  
-		  select case firstChar
-		  case ":" // Integer
-		    dim i as Int64 = firstLine.MidB( 2 ).Val
-		    r = i
+		  if firstLine = "+OK" then
+		    r = true
 		    pos = pos + firstLine.LenB + eolLen
 		    
-		  case "+" // Simple string
-		    r = firstLine.MidB( 2 )
-		    pos = pos + firstLine.LenB + eolLen
+		  else
+		    dim firstChar as string = firstLine.LeftB( 1 )
 		    
-		  case "-" // Error
-		    r = new RedisError( firstLine.MidB( 2 ) )
-		    pos = pos + firstLine.LenB + eolLen
-		    
-		  case "$" // Bulk string
-		    dim bytes as integer = firstLine.MidB( 2 ).Val
-		    if bytes = -1 then
-		      //
-		      // Null
-		      //
-		      r = nil
+		    select case firstChar
+		    case ":" // Integer
+		      dim i as Int64 = firstLine.MidB( 2 ).Val
+		      r = i
 		      pos = pos + firstLine.LenB + eolLen
 		      
-		    elseif bytes = 0 then
-		      r = ""
-		      pos = pos + firstLine.LenB + eolLen + eolLen
+		    case "+" // Simple string
+		      r = firstLine.MidB( 2 )
+		      pos = pos + firstLine.LenB + eolLen
 		      
-		    else
-		      r = s.MidB( pos + firstLine.LenB + eolLen, bytes )
-		      pos = pos + firstLine.LenB + eolLen + bytes + eolLen
+		    case "-" // Error
+		      r = new RedisError( firstLine.MidB( 2 ) )
+		      pos = pos + firstLine.LenB + eolLen
 		      
-		    end if
+		    case "$" // Bulk string
+		      dim bytes as integer = firstLine.MidB( 2 ).Val
+		      if bytes = -1 then
+		        //
+		        // Null
+		        //
+		        r = nil
+		        pos = pos + firstLine.LenB + eolLen
+		        
+		      elseif bytes = 0 then
+		        r = ""
+		        pos = pos + firstLine.LenB + eolLen + eolLen
+		        
+		      else
+		        r = s.MidB( pos + firstLine.LenB + eolLen, bytes )
+		        pos = pos + firstLine.LenB + eolLen + bytes + eolLen
+		        
+		      end if
+		      
+		    case "*" // Array
+		      dim ub as integer = firstLine.MidB( 2 ).Val - 1
+		      pos = pos + firstLine.LenB + eolLen
+		      
+		      dim arr() as variant
+		      redim arr( ub )
+		      
+		      for i as integer = 0 to ub
+		        arr( i ) = InterpretResponse( s, pos )
+		      next
+		      
+		      r = arr
+		      
+		    end select
 		    
-		  case "*" // Array
-		    dim ub as integer = firstLine.MidB( 2 ).Val - 1
-		    pos = pos + firstLine.LenB + eolLen
-		    
-		    dim arr() as variant
-		    redim arr( ub )
-		    
-		    for i as integer = 0 to ub
-		      arr( i ) = InterpretResponse( s, pos )
-		    next
-		    
-		    r = arr
-		    
-		  end select
+		  end if
 		  
 		  return r
 		  
@@ -806,6 +867,13 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub StartPipeline()
+		  zIsPipeline = true
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function StrLen(key As String) As Integer
 		  return Execute( "STRLEN", key ).IntegerValue
 		End Function
@@ -824,15 +892,15 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function Touch(ParamArray keys() As String) As Integer
-		  return Touch( keys )
-		  
+		Function Touch(keys() As String) As Integer
+		  return Execute( "TOUCH", keys ).IntegerValue
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function Touch(keys() As String) As Integer
-		  return Execute( "TOUCH", keys ).IntegerValue
+		Function Touch(ParamArray keys() As String) As Integer
+		  return Touch( keys )
+		  
 		End Function
 	#tag EndMethod
 
@@ -878,6 +946,20 @@ Class Redis_MTC
 		Private Shared EOL As String
 	#tag EndComputedProperty
 
+	#tag Property, Flags = &h21
+		Private IsFlushingPipeline As Boolean
+	#tag EndProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  return zIsPipeline
+			  
+			End Get
+		#tag EndGetter
+		IsPipeline As Boolean
+	#tag EndComputedProperty
+
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
@@ -911,6 +993,10 @@ Class Redis_MTC
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
+		Private Pipeline() As String
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
 		Private Socket As TCPSocket
 	#tag EndProperty
 
@@ -923,6 +1009,10 @@ Class Redis_MTC
 		#tag EndGetter
 		Version As String
 	#tag EndComputedProperty
+
+	#tag Property, Flags = &h21
+		Attributes( hidden ) Private zIsPipeline As Boolean
+	#tag EndProperty
 
 	#tag Property, Flags = &h21
 		Attributes( hidden ) Private zLastCommand As String

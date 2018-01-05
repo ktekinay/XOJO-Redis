@@ -447,6 +447,31 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub PipelineTest()
+		  dim r as new Redis_MTC
+		  r.StartPipeline
+		  
+		  const kUB as Int32 = 99
+		  for i as integer = 0 to kUB
+		    Assert.IsTrue r.Set( "xut:key" + str( i ), "xxx" )
+		  next
+		  
+		  dim arr() as variant = r.FlushPipeline
+		  Assert.AreEqual kUB, arr.Ubound
+		  
+		  for i as integer = 0 to kUB
+		    dim v as variant = arr( i )
+		    Assert.AreEqual Variant.TypeBoolean, v.Type, "Wasn't boolean"
+		    Assert.IsTrue v.BooleanValue
+		    Assert.AreSame "xxx", r.Get( "xut:key" + str( i ) ), i.ToText
+		  next
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub RenameTest()
 		  dim r as new Redis_MTC
 		  
