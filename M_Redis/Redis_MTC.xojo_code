@@ -1,10 +1,123 @@
 #tag Class
 Class Redis_MTC
 	#tag Method, Flags = &h0
+		Function Append(key As String, value As String) As Integer
+		  return Execute( "APPEND", key, value ).IntegerValue
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub Auth(pw As String)
 		  call Execute( "AUTH", pw )
 		  
 		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function BitAnd(destKey As String, key1 As String, key2 As String, ParamArray moreKeys() As String) As Integer
+		  dim params() as string = array( "AND", destKey, key1, key2 )
+		  for i as integer = 0 to moreKeys.Ubound
+		    params.Append moreKeys( i )
+		  next
+		  
+		  return Execute( "BITOP", params ).IntegerValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function BitCount(key As String) As Integer
+		  return Execute( "BITCOUNT", key ).IntegerValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function BitCount(key As String, startB As Integer, endB As Integer) As Integer
+		  return Execute( "BITCOUNT", key, str( startB ), str( endB ) ).IntegerValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0, Description = 5479706520697320696E2074686520666F726D2075362C20693136
+		Function BitFieldGet(key As String, type As String, offset As Integer, isByteOffset As Boolean = False) As Int64
+		  dim offsetString as string = if( isByteOffset, "#", "" ) + str( offset )
+		  dim r() as variant = Execute( "BITFIELD", key, "GET", type, offsetString )
+		  return r( 0 ).Int64Value
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function BitFieldIncrementBy(key As String, type As String, offset As Integer, value As Int64, isByteOffset As Boolean = False, overflow As Overflows = Overflows.Wrap) As Int64
+		  dim offsetString as string = if( isByteOffset, "#", "" ) + str( offset )
+		  
+		  dim params() as string = array( key )
+		  if overflow <> Overflows.Wrap then
+		    params.Append "OVERFLOW"
+		    select case overflow
+		    case Overflows.Fail
+		      params.Append "FAIL"
+		    case Overflows.Sat
+		      params.Append "SAT"
+		    end select
+		  end if
+		  
+		  params.Append "INCRBY"
+		  params.Append type
+		  params.Append offsetString
+		  params.Append str( value )
+		  
+		  dim r() as variant = Execute( "BITFIELD", params )
+		  return r( 0 ).Int64Value
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function BitFieldSet(key As String, type As String, offset As Integer, value As Int64, isByteOffset As Boolean = False) As Int64
+		  dim offsetString as string = if( isByteOffset, "#", "" ) + str( offset )
+		  dim r() as variant = Execute( "BITFIELD", key, "SET", type, offsetString, str( value ) )
+		  return r( 0 ).Int64Value
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function BitNot(destKey As String, key As String) As Integer
+		  return Execute( "BITOP", "NOT", destKey, key ).IntegerValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function BitOr(destKey As String, key1 As String, key2 As String, ParamArray moreKeys() As String) As Integer
+		  dim params() as string = array( "OR", destKey, key1, key2 )
+		  for i as integer = 0 to moreKeys.Ubound
+		    params.Append moreKeys( i )
+		  next
+		  
+		  return Execute( "BITOP", params ).IntegerValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function BitPos(key As String, value As Integer, startByteB As Integer = 0, endByteB As Integer = -1) As Integer
+		  dim params() as string = array( key, str( value ) )
+		  if startByteB > 0 or endByteB > -1 then
+		    params.Append str( startByteB )
+		    if endByteB > -1 then
+		      params.Append str( endByteB )
+		    end if
+		  end if
+		  
+		  return Execute( "BITPOS", params ).IntegerValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function BitXor(destKey As String, key1 As String, key2 As String, ParamArray moreKeys() As String) As Integer
+		  dim params() as string = array( "XOR", destKey, key1, key2 )
+		  for i as integer = 0 to moreKeys.Ubound
+		    params.Append moreKeys( i )
+		  next
+		  
+		  return Execute( "BITOP", params ).IntegerValue
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -92,6 +205,18 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function Decrement(key As String) As Integer
+		  return Execute( "DECR", key ).IntegerValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function DecrementBy(key As String, value As Integer) As Integer
+		  return Execute( "DECRBY", key, str( value ) ).IntegerValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function Delete(keys() As String) As Integer
 		  //
 		  // Will ignore an empty array
@@ -107,8 +232,11 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Sub Delete(key As String)
-		  call Execute( CommandDelete, key )
+		Sub Delete(key As String, silent As Boolean = False)
+		  if Execute( CommandDelete, key ).IntegerValue = 0 and not silent then
+		    raise new KeyNotFoundException
+		  end if
+		  
 		  
 		End Sub
 	#tag EndMethod
@@ -179,6 +307,12 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function Execute(command As String, ParamArray parameters() As String) As Variant
+		  return Execute( command, parameters )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function Execute(command As String, parameters() As String) As Variant
 		  static eol as string = self.EOL
 		  
@@ -217,6 +351,7 @@ Class Redis_MTC
 		  
 		  dim h as new SemaphoreHolder( CommandSemaphore )
 		  
+		  zLastCommand = cmd
 		  Socket.Write cmd
 		  
 		  dim r as variant = GetReponse
@@ -228,12 +363,6 @@ Class Redis_MTC
 		  
 		  return r
 		  
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
-		Function Execute(command As String, ParamArray parameters() As String) As Variant
-		  return Execute( command, parameters )
 		End Function
 	#tag EndMethod
 
@@ -317,9 +446,23 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function GetBit(key As String, startB As Integer) As Integer
+		  return Execute( "GETBIT", key, str( startB ) ).IntegerValue
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function GetMultiple(ParamArray keys() As String) As Variant()
 		  dim arr() as variant = Execute( "MGET", keys )
 		  return arr
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function GetRange(key As String, startB As Integer, endB As Integer) As String
+		  return Execute( "GETRANGE", key, str( startB ), str( endB ) ).StringValue
 		  
 		End Function
 	#tag EndMethod
@@ -370,6 +513,30 @@ Class Redis_MTC
 		    
 		  end if
 		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function GetSet(key As String, value As String) As String
+		  return Execute( "GETSET", key, value ).StringValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function Increment(key As String) As Integer
+		  return Execute( "INCR", key ).IntegerValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function IncrementBy(key As String, value As Integer) As Integer
+		  return Execute( "INCRBY", key, str( value ) ).IntegerValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function IncrementByFloat(key As String, value As Double) As Double
+		  return Execute( "INCRBYFLOAT", key, str( value, "-0.0#############" ) ).DoubleValue
 		End Function
 	#tag EndMethod
 
@@ -490,6 +657,13 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub Persist(key As String)
+		  call Execute( "PERSIST", key )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function Ping(msg As String = "") As String
 		  if msg = "" then
 		    return Execute( "PING", nil )
@@ -578,6 +752,18 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function SetBit(key As String, startB As Integer, value As Integer) As Integer
+		  return Execute( "SETBIT", key, str( startB ), str( value ) ).IntegerValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub SetMultiple(ParamArray keyValue() As Pair)
+		  SetMultiple keyValue
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub SetMultiple(keyValue() As Pair)
 		  dim parts() as string
 		  
@@ -592,9 +778,37 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Sub SetMultiple(ParamArray keyValue() As Pair)
-		  SetMultiple keyValue
-		End Sub
+		Function SetMultipleIfNoneExist(keyValue() As Pair) As Boolean
+		  dim parts() as string
+		  
+		  for i as integer = 0 to keyValue.Ubound
+		    dim p as pair = keyValue( i )
+		    parts.Append p.Left
+		    parts.Append p.Right
+		  next
+		  
+		  dim cnt as integer = Execute( "MSETNX", parts ).IntegerValue
+		  return cnt <> 0
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SetMultipleIfNoneExist(ParamArray keyValue() As Pair) As Boolean
+		  return SetMultipleIfNoneExist( keyValue )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SetRange(key As String, startB As Integer, value As String) As Integer
+		  return Execute( "SETRANGE", key, str( startB ), value ).IntegerValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function StrLen(key As String) As Integer
+		  return Execute( "STRLEN", key ).IntegerValue
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -606,6 +820,29 @@ Class Redis_MTC
 		  end if
 		  
 		  return r
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function Touch(ParamArray keys() As String) As Integer
+		  return Touch( keys )
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function Touch(keys() As String) As Integer
+		  return Execute( "TOUCH", keys ).IntegerValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function Type(key As String) As String
+		  dim t as string = Execute( "TYPE", key ).StringValue
+		  if t = "none" then
+		    raise new KeyNotFoundException
+		  end if
+		  return t
 		End Function
 	#tag EndMethod
 
@@ -644,6 +881,16 @@ Class Redis_MTC
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
+			  return zLastCommand
+			  
+			End Get
+		#tag EndGetter
+		LastCommand As String
+	#tag EndComputedProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
 			  if Socket is nil then
 			    return 0
 			  else
@@ -676,6 +923,10 @@ Class Redis_MTC
 		#tag EndGetter
 		Version As String
 	#tag EndComputedProperty
+
+	#tag Property, Flags = &h21
+		Attributes( hidden ) Private zLastCommand As String
+	#tag EndProperty
 
 	#tag Property, Flags = &h21
 		Attributes( hidden ) Private zVersion As String
@@ -727,6 +978,36 @@ Class Redis_MTC
 	#tag Constant, Name = kSectionStats, Type = String, Dynamic = False, Default = \"stats", Scope = Public
 	#tag EndConstant
 
+	#tag Constant, Name = kTypeInt16, Type = String, Dynamic = False, Default = \"i16", Scope = Public
+	#tag EndConstant
+
+	#tag Constant, Name = kTypeInt32, Type = String, Dynamic = False, Default = \"i32", Scope = Public
+	#tag EndConstant
+
+	#tag Constant, Name = kTypeInt64, Type = String, Dynamic = False, Default = \"i64", Scope = Public
+	#tag EndConstant
+
+	#tag Constant, Name = kTypeInt8, Type = String, Dynamic = False, Default = \"i8", Scope = Public
+	#tag EndConstant
+
+	#tag Constant, Name = kTypeUInt16, Type = String, Dynamic = False, Default = \"u16", Scope = Public
+	#tag EndConstant
+
+	#tag Constant, Name = kTypeUInt32, Type = String, Dynamic = False, Default = \"u32", Scope = Public
+	#tag EndConstant
+
+	#tag Constant, Name = kTypeUint63, Type = String, Dynamic = False, Default = \"u63", Scope = Public
+	#tag EndConstant
+
+	#tag Constant, Name = kTypeUInt8, Type = String, Dynamic = False, Default = \"u8", Scope = Public
+	#tag EndConstant
+
+
+	#tag Enum, Name = Overflows, Type = Integer, Flags = &h0
+		Wrap
+		  Sat
+		Fail
+	#tag EndEnum
 
 	#tag Enum, Name = SetMode, Type = Integer, Flags = &h0
 		Always
@@ -778,6 +1059,7 @@ Class Redis_MTC
 			Name="Version"
 			Group="Behavior"
 			Type="String"
+			EditorType="MultiLineEditor"
 		#tag EndViewProperty
 	#tag EndViewBehavior
 End Class

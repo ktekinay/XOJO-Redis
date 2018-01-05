@@ -24,6 +24,20 @@ Inherits TestGroup
 
 
 	#tag Method, Flags = &h0
+		Sub AppendTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual 1, r.Append( "xut:key", "h" )
+		  Assert.AreSame "h", r.Get( "xut:key" )
+		  
+		  Assert.AreEqual 2, r.Append( "xut:key", "i" )
+		  Assert.AreSame "hi", r.Get( "xut:key" )
+		  
+		  r.Delete "xut:key"
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub AuthTest()
 		  dim r as new Redis_MTC
 		  r.ConfigSet Redis_MTC.kConfigRequirePass, "pw"
@@ -43,6 +57,89 @@ Inherits TestGroup
 		  r = new Redis_MTC( "pw" )
 		  Assert.IsNotNil r
 		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub BitCountTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.Set( "xut:key", "abc123", 100 )
+		  Assert.AreEqual 20, r.BitCount( "xut:key" ), "Full"
+		  Assert.AreEqual 6, r.BitCount( "xut:key", 0, 1 ), "Partial"
+		  
+		  r.Delete "xut:key"
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub BitFieldIncrementByTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual 0, r.BitFieldSet( "xut:key", r.kTypeUInt32, 0, 0 )
+		  Assert.AreEqual Int64( 5 ), r.BitFieldIncrementBy( "xut:key", "u8", 0, 5 )
+		  Assert.AreEqual Int64( 7 ), r.BitFieldIncrementBy( "xut:key", "u8", 0, 2, false, Redis_MTC.Overflows.Sat )
+		  Assert.Message "With Overflow: " + &uA + ReplaceLineEndings( r.LastCommand.Trim, &uA ).ToText
+		  
+		  r.Delete "xut:key"
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub BitFieldSetGetTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual 0, r.BitFieldSet( "xut:key","u8", 0, &b10101010 ), "Set 1"
+		  Assert.AreEqual CType( &b0101, Int64 ), r.BitFieldSet( "xut:key", "u4", 1, 1 ), "Set 2"
+		  Assert.AreEqual CType( &b10001010, Int64 ), r.BitFieldGet( "xut:key", r.kTypeUInt8, 0 ), "Get"
+		  
+		  r.Delete "xut:key"
+		  
+		  Assert.AreEqual 0, r.BitFieldSet( "xut:key", "u32", 0, &hFFFFFFFF )
+		  Assert.AreEqual CType( &hFF, Int64 ), r.BitFieldSet( "xut:key", "u8", 1, 0, true )
+		  Assert.AreEqual CType( &hFF00FFFF, Int64 ), r.BitFieldGet( "xut:key", "u32", 0 )
+		  Assert.AreEqual CType( &hFFFF, Int64 ), r.BitfieldGet( "xut:key", "u16", 1, true )
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub BitOpTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.Set( "xut:key1", "foobar" )
+		  Assert.IsTrue r.Set( "xut:key2", "abcdef" )
+		  
+		  Assert.AreEqual 6, r.BitAnd( "xut:key3", "xut:key1", "xut:key2" ), "AND cnt"
+		  Assert.AreEqual "`bc`ab", r.Get( "xut:key3" ), "AND Get"
+		  
+		  Assert.AreEqual 6, r.BitOr( "xut:key3", "xut:key1", "xut:key2" ), "OR cnt"
+		  Assert.AreEqual "goofev", r.Get( "xut:key3" ), "OR Get"
+		  
+		  Assert.AreEqual 6, r.BitXor( "xut:key3", "xut:key1", "xut:key2" ), "XOR cnt"
+		  Assert.AreEqual "070D0C060414", EncodeHex( r.Get( "xut:key3" ) ), "XOR Get"
+		  
+		  Assert.AreEqual 6, r.BitNot( "xut:key3", "xut:key1" ), "NOT cnt"
+		  Assert.AreEqual "9990909d9e8d", EncodeHex( r.Get( "xut:key3" ) ), "NOT Get"
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub BitPosTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.Set( "xut:key", ChrB( &b10101010 ) + ChrB( &b01010101 ), 1000 )
+		  Assert.AreEqual 0, r.BitPos( "xut:key", 1 ), "1 in entire"
+		  Assert.AreEqual 1, r.BitPos( "xut:key", 0 ) , "0 in entire"
+		  Assert.AreEqual 9, r.BitPos( "xut:key", 1, 1 ), "1 starting at second byte"
+		  Assert.AreEqual 8, r.BitPos( "xut:key", 0, 1 ), "0 starting at second byte"
+		  Assert.AreEqual 0, r.BitPos( "xut:key", 1, 0, 0 ), "1 in first byte"
+		  Assert.AreEqual 9, r.BitPos( "xut:key", 1, 1, 1 ), "1 in second byte"
+		  
+		  r.Delete "xut:key"
 		End Sub
 	#tag EndMethod
 
@@ -69,19 +166,66 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub DecrementByTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual -2, r.DecrementBy( "xut:key", 2 )
+		  Assert.AreEqual -5, r.DecrementBy( "xut:key", 3 )
+		  
+		  Assert.IsTrue r.Set( "xut:key", "4", 10 )
+		  Assert.AreEqual 1, r.DecrementBy( "xut:key", 3 )
+		  
+		  r.Delete "xut:key"
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub DecrementTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual -1, r.Decrement( "xut:key" )
+		  Assert.AreEqual -2, r.Decrement( "xut:key" )
+		  
+		  Assert.IsTrue r.Set( "xut:key", "4", 10 )
+		  Assert.AreEqual 3, r.Decrement( "xut:key" )
+		  
+		  r.Delete "xut:key"
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub DeleteTest()
 		  dim r as new Redis_MTC
 		  
 		  Assert.IsTrue r.Set( "xut:key", "value" )
 		  r.Delete( "xut:key" )
-		  Assert.AreEqual Ctype( -1, Int32 ), r.Keys.Ubound
+		  Assert.AreEqual Ctype( -1, Int32 ), r.Keys( "xut:*" ).Ubound
 		  
 		  Assert.IsTrue r.Set( "xut:key1", "value1" )
 		  Assert.IsTrue r.Set( "xut:key2", "value2" )
 		  Assert.AreEqual 2, r.Delete( "xut:key1", "xut:key2", "xut:key3" )
 		  
-		  r.SetMultiple "xut:key1" : "value", "xut:key2" : "other"
-		  Assert.AreEqual Ctype( 1, Int32 ), r.Keys.Ubound
+		  #pragma BreakOnExceptions false
+		  try
+		    r.Delete( "xut:key" )
+		    Assert.Fail "Did not raise exception"
+		  catch err as KeyNotFoundException
+		    Assert.Pass "Raised exception"
+		  end try
+		  #pragma BreakOnExceptions default
+		  
+		  #pragma BreakOnExceptions false
+		  try
+		    r.Delete( "xut:key", true )
+		    Assert.Pass "Did not raise exception on silent"
+		  catch err as KeyNotFoundException
+		    Assert.Fail "Raised exception on silent"
+		  end try
+		  #pragma BreakOnExceptions default
+		  
+		  
 		End Sub
 	#tag EndMethod
 
@@ -148,6 +292,10 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub FlushAllTest()
+		  //
+		  // A dangerous test that we do not perform unless needed
+		  //
+		  return
 		  dim r as new Redis_MTC
 		  Assert.IsTrue r.Set( "xut:key", "value" )
 		  
@@ -172,19 +320,93 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub GetRangeTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.Set( "xut:key", "hi there" )
+		  Assert.AreSame "hi there", r.GetRange( "xut:key", 0, 7 )
+		  Assert.AreSame "hi there", r.GetRange( "xut:key", 0, 70 )
+		  Assert.AreSame "hi", r.GetRange( "xut:key", 0, 1 )
+		  Assert.AreSame "there", r.GetRange( "xut:key", 3, 7 )
+		  Assert.AreSame "there", r.GetRange( "xut:key", 3, 70 )
+		  
+		  r.Delete "xut:key"
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub GetSetTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual "", r.GetSet( "xut:key", "a" )
+		  Assert.AreEqual "a", r.GetSet( "xut:key", "b" )
+		  Assert.AreEqual "b", r.Get( "xut:key" )
+		  
+		  call r.Delete( "xut:key" )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub IncrementByFloatTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual 0.5, r.IncrementByFloat( "xut:key", 0.5 )
+		  Assert.AreEqual 1.0, r.IncrementByFloat( "xut:key", 0.5 )
+		  
+		  Assert.IsTrue r.Set( "xut:key", "1.75", 10 )
+		  Assert.AreEqual 4.25, r.IncrementByFloat( "xut:key", 2.5 )
+		  
+		  Assert.AreEqual 4.0, r.IncrementByFloat( "xut:key", -0.25 )
+		  
+		  r.Delete "xut:key"
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub IncrementByTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual 2, r.IncrementBy( "xut:key", 2 )
+		  Assert.AreEqual 5, r.IncrementBy( "xut:key", 3 )
+		  
+		  Assert.IsTrue r.Set( "xut:key", "4", 10 )
+		  Assert.AreEqual 10, r.IncrementBy( "xut:key", 6 )
+		  
+		  r.Delete "xut:key"
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub IncrementTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual 1, r.Increment( "xut:key" )
+		  Assert.AreEqual 2, r.Increment( "xut:key" )
+		  
+		  Assert.IsTrue r.Set( "xut:key", "4", 10 )
+		  Assert.AreEqual 5, r.Increment( "xut:key" )
+		  
+		  r.Delete "xut:key"
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub KeysTest()
 		  dim r as new Redis_MTC
 		  
-		  dim keys() as string = r.Keys
+		  dim keys() as string = r.Keys( "xut:*" )
 		  Assert.AreEqual CType( -1, Int32 ), keys.Ubound
 		  
 		  Assert.IsTrue r.Set( "xut:key", "value" )
 		  Assert.IsTrue r.Set( "xut:key2", "another" )
 		  
-		  keys = r.Keys
+		  keys = r.Keys( "xut:*" )
 		  Assert.AreEqual CType( 1, Int32 ), keys.Ubound
 		  
-		  keys = r.Keys( "*2" )
+		  keys = r.Keys( "xut:*2" )
 		  Assert.AreEqual CType( 0, Int32 ), keys.Ubound
 		  
 		End Sub
@@ -197,6 +419,19 @@ Inherits TestGroup
 		  while Microseconds < targetMicroseconds
 		    App.YieldToNextThread
 		  wend
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub PersistTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.Set( "xut:key1", "v", 30 )
+		  Assert.IsTrue r.TimeToLiveMs( "xut:key1" ) <> -1
+		  r.Persist( "xut:key1" )
+		  Assert.AreEqual -1, r.TimeToLiveMs( "xut:key1" )
+		  r.Delete "xut:key1"
 		  
 		End Sub
 	#tag EndMethod
@@ -219,7 +454,7 @@ Inherits TestGroup
 		  r.Rename "xut:key", "xut:key1"
 		  Assert.AreSame "value", r.Get( "xut:key1" )
 		  
-		  r.FlushAll
+		  call r.Delete( r.Scan( "xut:*" ) )
 		  
 		  Assert.IsTrue r.Set( "xut:key1", "value" )
 		  r.Rename "xut:key1", "xut:key2", true
@@ -280,6 +515,18 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub SetBitGetBitTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual 0, r.SetBit( "xut:key", 0, 1 )
+		  Assert.AreEqual 1, r.GetBit( "xut:key", 0 )
+		  
+		  Assert.AreEqual 1, r.SetBit( "xut:key", 0, 0 )
+		  Assert.AreEqual 0, r.GetBit( "xut:key", 0 )
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub SetExpiredTest()
 		  dim r as new Redis_MTC
 		  
@@ -330,6 +577,46 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub SetMultipleIfNoneExistTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.SetMultipleIfNoneExist( "xut:key1" : "value", "xut:key2" : "another" ), "Initial set"
+		  Assert.IsFalse r.SetMultipleIfNoneExist( "xut:key2" : "value", "xut:key3" : "another" ), "One exists"
+		  call r.Delete( "xut:key1", "xut:key2" )
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub SetRangeTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual 2, r.SetRange( "xut:key", 0, "hi" )
+		  Assert.AreSame "hi", r.Get( "xut:key" )
+		  
+		  Assert.AreEqual 8, r.SetRange( "xut:key", 2, " there" )
+		  Assert.AreSame "hi there", r.Get( "xut:key" )
+		  
+		  Assert.AreEqual 8, r.SetRange( "xut:key", 1, "o" )
+		  Assert.AreSame "ho there", r.Get( "xut:key" )
+		  
+		  r.Delete "xut:key"
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub StrLenTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual 0, r.StrLen( "xut:key" )
+		  Assert.IsTrue r.Set( "xut:key", "hi" )
+		  Assert.AreEqual 2, r.StrLen( "xut:key" )
+		  
+		  r.Delete "xut:key"
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub ThreadTest()
 		  dim r as new Redis_MTC
 		  Redis = r
@@ -373,7 +660,7 @@ Inherits TestGroup
 		  dim r as new Redis_MTC
 		  
 		  Assert.IsTrue r.Set( "xut:key1", "value", 60 )
-		  Assert.AreEqual 60, r.TimeToLiveMs( "xut:key1" )
+		  Assert.IsTrue r.TimeToLiveMs( "xut:key1" ) >= 58
 		  r.Delete "xut:key1"
 		  
 		  #pragma BreakOnExceptions false
@@ -389,6 +676,45 @@ Inherits TestGroup
 		  Assert.AreEqual -1, r.TimeToLiveMs( "xut:key1" )
 		  
 		  r.Delete "xut:key1"
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub TouchTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.Set( "xut:key1", "value", 30 )
+		  Assert.IsTrue r.Set( "xut:key2", "another", 60 )
+		  
+		  Assert.AreEqual 2, r.Touch( "xut:key1", "xut:key2", "xut:key3" )
+		  
+		  Pause 20
+		  
+		  Assert.AreEqual 1, r.Touch( "xut:key2" )
+		  dim ttl as integer= r.TimeToLiveMs( "xut:key2" )
+		  Assert.IsTrue ttl > 50, "TTL should be more than " + ttl.ToText
+		  
+		  call r.Delete( "xut:key1", "xut:key2" )
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub TypeTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.Set( "xut:key1", "value" )
+		  Assert.AreEqual "string", r.Type( "xut:key1" )
+		  r.Delete "xut:key1"
+		  
+		  #pragma BreakOnExceptions false
+		  try
+		    call r.Type( "xut:key1" )
+		    Assert.Fail "Did not raise exception"
+		  catch err as KeyNotFoundException
+		    Assert.Pass "Raised exception"
+		  end try
+		  #pragma BreakOnExceptions default
 		  
 		End Sub
 	#tag EndMethod
