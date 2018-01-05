@@ -2,7 +2,14 @@
 Class Redis_MTC
 	#tag Method, Flags = &h0
 		Function Append(key As String, value As String) As Integer
-		  return Execute( "APPEND", key, value ).IntegerValue
+		  dim v as variant = Execute( "APPEND", key, value )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		  
 		End Function
 	#tag EndMethod
@@ -21,27 +28,53 @@ Class Redis_MTC
 		    params.Append moreKeys( i )
 		  next
 		  
-		  return Execute( "BITOP", params ).IntegerValue
+		  dim v as variant = Execute( "BITOP", params )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function BitCount(key As String) As Integer
-		  return Execute( "BITCOUNT", key ).IntegerValue
+		  dim v as variant = Execute( "BITCOUNT", key )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function BitCount(key As String, startB As Integer, endB As Integer) As Integer
-		  return Execute( "BITCOUNT", key, str( startB ), str( endB ) ).IntegerValue
+		  dim v as variant = Execute( "BITCOUNT", key, str( startB ), str( endB ) )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0, Description = 5479706520697320696E2074686520666F726D2075362C20693136
 		Function BitFieldGet(key As String, type As String, offset As Integer, isByteOffset As Boolean = False) As Int64
 		  dim offsetString as string = if( isByteOffset, "#", "" ) + str( offset )
-		  dim r() as variant = Execute( "BITFIELD", key, "GET", type, offsetString )
-		  return r( 0 ).Int64Value
+		  dim v as variant = Execute( "BITFIELD", key, "GET", type, offsetString )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    dim r() as variant = v
+		    return r( 0 ).Int64Value
+		  end if
 		End Function
 	#tag EndMethod
 
@@ -65,22 +98,43 @@ Class Redis_MTC
 		  params.Append offsetString
 		  params.Append str( value )
 		  
-		  dim r() as variant = Execute( "BITFIELD", params )
-		  return r( 0 ).Int64Value
+		  dim v as variant = Execute( "BITFIELD", params )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    dim r() as variant = v
+		    return r( 0 ).Int64Value
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function BitFieldSet(key As String, type As String, offset As Integer, value As Int64, isByteOffset As Boolean = False) As Int64
 		  dim offsetString as string = if( isByteOffset, "#", "" ) + str( offset )
-		  dim r() as variant = Execute( "BITFIELD", key, "SET", type, offsetString, str( value ) )
-		  return r( 0 ).Int64Value
+		  dim v as variant = Execute( "BITFIELD", key, "SET", type, offsetString, str( value ) )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    dim r() as variant = v
+		    return r( 0 ).Int64Value
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function BitNot(destKey As String, key As String) As Integer
-		  return Execute( "BITOP", "NOT", destKey, key ).IntegerValue
+		  dim v as variant = Execute( "BITOP", "NOT", destKey, key )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
@@ -91,7 +145,14 @@ Class Redis_MTC
 		    params.Append moreKeys( i )
 		  next
 		  
-		  return Execute( "BITOP", params ).IntegerValue
+		  dim v as variant = Execute( "BITOP", params )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
@@ -105,7 +166,14 @@ Class Redis_MTC
 		    end if
 		  end if
 		  
-		  return Execute( "BITPOS", params ).IntegerValue
+		  dim v as variant = Execute( "BITPOS", params )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
@@ -116,7 +184,14 @@ Class Redis_MTC
 		    params.Append moreKeys( i )
 		  next
 		  
-		  return Execute( "BITOP", params ).IntegerValue
+		  dim v as variant = Execute( "BITOP", params )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
@@ -126,15 +201,23 @@ Class Redis_MTC
 		    pattern = "*"
 		  end if
 		  
-		  dim arr() as variant = Execute( "CONFIG", "GET", pattern )
+		  dim v as variant = Execute( "CONFIG", "GET", pattern )
 		  
-		  dim r as new Dictionary
-		  for i as integer = 0 to arr.Ubound step 2
-		    r.Value( arr( i ).StringValue ) = arr( i + 1 ).StringValue
-		  next
-		  
-		  return r
-		  
+		  if zIsPipeline then
+		    
+		    return nil
+		    
+		  else
+		    
+		    dim arr() as variant = v
+		    dim r as new Dictionary
+		    for i as integer = 0 to arr.Ubound step 2
+		      r.Value( arr( i ).StringValue ) = arr( i + 1 ).StringValue
+		    next
+		    
+		    return r
+		    
+		  end if
 		End Function
 	#tag EndMethod
 
@@ -206,13 +289,27 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function Decrement(key As String) As Integer
-		  return Execute( "DECR", key ).IntegerValue
+		  dim v as variant = Execute( "DECR", key )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function DecrementBy(key As String, value As Integer) As Integer
-		  return Execute( "DECRBY", key, str( value ) ).IntegerValue
+		  dim v as variant = Execute( "DECRBY", key, str( value ) )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
@@ -226,14 +323,21 @@ Class Redis_MTC
 		  if keys.Ubound = -1 then
 		    return 0
 		  else
-		    return Execute( CommandDelete, keys )
+		    dim v as variant = Execute( CommandDelete, keys )
+		    if zIsPipeline then
+		      return -3
+		    else
+		      return v.IntegerValue
+		    end if
 		  end if
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Sub Delete(key As String, silent As Boolean = False)
-		  if Execute( CommandDelete, key ).IntegerValue = 0 and not silent then
+		  dim v as variant = Execute( CommandDelete, key )
+		  
+		  if not silent and not zIsPipeline and v.IntegerValue = 0 then
 		    raise new KeyNotFoundException
 		  end if
 		  
@@ -310,6 +414,8 @@ Class Redis_MTC
 		Function Execute(command As String, parameters() As String) As Variant
 		  static eol as string = self.EOL
 		  
+		  dim h as new SemaphoreHolder( CommandSemaphore )
+		  
 		  dim cmd as string = command
 		  
 		  if IsFlushingPipeline then
@@ -321,15 +427,25 @@ Class Redis_MTC
 		    #endif
 		    
 		  elseif parameters is nil or parameters.Ubound = -1 then
-		    
+		    //
+		    // cmd is good
+		    //
 		    #if DebugBuild then
 		      cmd = cmd // A place to break
 		    #endif
+		    
+		    if zIsPipeline then
+		      Pipeline.Append cmd
+		    end if
 		    
 		  else
 		    
 		    dim arrCount as integer = parameters.Ubound + 2
 		    dim raw() as string
+		    if zIsPipeline then
+		      raw = Pipeline
+		    end if
+		    
 		    raw.Append "*" + str( arrCount )
 		    
 		    raw.Append "$" + str( command.LenB )
@@ -342,18 +458,16 @@ Class Redis_MTC
 		      
 		    next
 		    
-		    cmd = join( raw, eol )
-		    
+		    if not zIsPipeline then
+		      cmd = join( raw, eol )
+		    end if
 		  end if
 		  
 		  if zIsPipeline and not IsFlushingPipeline then
 		    
-		    Pipeline.Append cmd
 		    return true
 		    
 		  else
-		    
-		    dim h as new SemaphoreHolder( CommandSemaphore )
 		    
 		    zLastCommand = cmd
 		    
@@ -383,8 +497,14 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function Exists(key As String) As Boolean
-		  dim r as integer = Execute( "EXISTS", key )
-		  return r <> 0
+		  dim v as variant = Execute( "EXISTS", key )
+		  
+		  if zIsPipeline then
+		    return true
+		  else
+		    return v.IntegerValue <> 0
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
@@ -395,7 +515,14 @@ Class Redis_MTC
 		    parts.Append key
 		  next
 		  
-		  return Execute( "EXISTS", parts ).IntegerValue
+		  dim v as variant = Execute( "EXISTS", parts )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
@@ -468,11 +595,16 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function Get(key As String) As String
-		  dim value as variant = Execute( "GET", key )
-		  if value.IsNull then
+		  dim v as variant = Execute( "GET", key )
+		  
+		  if zIsPipeline then
+		    return ""
+		    
+		  elseif v.IsNull then
 		    raise new KeyNotFoundException
+		    
 		  else
-		    return value.StringValue
+		    return v.StringValue
 		  end if
 		  
 		End Function
@@ -480,22 +612,47 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function GetBit(key As String, startB As Integer) As Integer
-		  return Execute( "GETBIT", key, str( startB ) ).IntegerValue
+		  dim v as variant = Execute( "GETBIT", key, str( startB ) )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function GetMultiple(ParamArray keys() As String) As Variant()
-		  dim arr() as variant = Execute( "MGET", keys )
-		  return arr
+		  return GetMultiple( keys )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function GetMultiple(keys() As String) As Variant()
+		  dim r as variant = Execute( "MGET", keys )
+		  if r.IsArray then
+		    return r
+		  else
+		    dim arr() as variant
+		    arr.Append r
+		    return arr
+		  end if
 		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function GetRange(key As String, startB As Integer, endB As Integer) As String
-		  return Execute( "GETRANGE", key, str( startB ), str( endB ) ).StringValue
+		  dim v as variant = Execute( "GETRANGE", key, str( startB ), str( endB ) )
+		  
+		  if zIsPipeline then
+		    return ""
+		  else
+		    return v.StringValue
+		  end if
 		  
 		End Function
 	#tag EndMethod
@@ -549,21 +706,9 @@ Class Redis_MTC
 		  else
 		    
 		    dim pos as integer = 1
-		    if IsFlushingPipeline then
-		      
-		      dim arr() as variant
-		      while pos <= raw.LenB
-		        dim v as Variant = InterpretResponse( raw, pos )
-		        arr.Append v
-		      wend
-		      return arr
-		      
-		    else
-		      
-		      dim v as variant = InterpretResponse( raw, pos )
-		      return v
-		      
-		    end if
+		    
+		    dim v as variant = InterpretResponse( raw, pos )
+		    return v
 		    
 		  end if
 		  
@@ -572,34 +717,69 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function GetSet(key As String, value As String) As String
-		  return Execute( "GETSET", key, value ).StringValue
+		  dim v as variant = Execute( "GETSET", key, value )
+		  
+		  if zIsPipeline then
+		    return ""
+		  else
+		    return v.StringValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function Increment(key As String) As Integer
-		  return Execute( "INCR", key ).IntegerValue
+		  dim v as variant = Execute( "INCR", key )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function IncrementBy(key As String, value As Integer) As Integer
-		  return Execute( "INCRBY", key, str( value ) ).IntegerValue
+		  dim v as variant = Execute( "INCRBY", key, str( value ) )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function IncrementByFloat(key As String, value As Double) As Double
-		  return Execute( "INCRBYFLOAT", key, str( value, "-0.0#############" ) ).DoubleValue
+		  dim v as variant = Execute( "INCRBYFLOAT", key, str( value, "-0.0#############" ) )
+		  
+		  if zIsPipeline then
+		    return 0.0
+		  else
+		    return v.DoubleValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function Info(section As String = "") As String
+		  dim v as variant
 		  if section = "" then
-		    return Execute( "INFO", nil ).StringValue
+		    v = Execute( "INFO", nil )
 		  else
-		    return Execute( "INFO", section ).StringValue
+		    v = Execute( "INFO", section )
+		  end if
+		  
+		  if zIsPipeline then
+		    return ""
+		  else
+		    return v.StringValue
 		  end if
 		  
 		End Function
@@ -619,81 +799,100 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h21
-		Private Function InterpretResponse(s As String, ByRef pos As Integer) As Variant
+		Private Function InterpretResponse(s As String, ByRef pos As Integer, isSubprocess As Boolean = False) As Variant
 		  static eol as string = self.EOL
 		  static eolLen as integer = eol.LenB
 		  
+		  dim rArr() as variant
 		  dim r as variant
 		  
 		  if pos < 2 then
 		    pos = 1
 		  end if
 		  
-		  dim firstLine as string
-		  dim eolPos as integer = s.InStrB( pos, eol )
-		  if eolPos = 0 then
-		    eolPos = s.LenB + 1
-		  end if
-		  firstLine = s.MidB( pos, eolPos - pos )
+		  dim sLen as integer = s.LenB
 		  
-		  if firstLine = "+OK" then
-		    r = true
-		    pos = pos + firstLine.LenB + eolLen
+		  dim useArr as boolean = IsFlushingPipeline and not isSubprocess
+		  
+		  do
 		    
-		  else
-		    dim firstChar as string = firstLine.LeftB( 1 )
+		    dim firstLine as string
+		    dim eolPos as integer = s.InStrB( pos, eol )
+		    if eolPos = 0 then
+		      eolPos = s.LenB + 1
+		    end if
+		    firstLine = s.MidB( pos, eolPos - pos )
 		    
-		    select case firstChar
-		    case ":" // Integer
-		      dim i as Int64 = firstLine.MidB( 2 ).Val
-		      r = i
+		    if firstLine = "+OK" then
+		      r = true
 		      pos = pos + firstLine.LenB + eolLen
 		      
-		    case "+" // Simple string
-		      r = firstLine.MidB( 2 )
-		      pos = pos + firstLine.LenB + eolLen
+		    else
+		      dim firstChar as string = firstLine.LeftB( 1 )
 		      
-		    case "-" // Error
-		      r = new RedisError( firstLine.MidB( 2 ) )
-		      pos = pos + firstLine.LenB + eolLen
-		      
-		    case "$" // Bulk string
-		      dim bytes as integer = firstLine.MidB( 2 ).Val
-		      if bytes = -1 then
-		        //
-		        // Null
-		        //
-		        r = nil
+		      select case firstChar
+		      case ":" // Integer
+		        dim i as Int64 = firstLine.MidB( 2 ).Val
+		        r = i
 		        pos = pos + firstLine.LenB + eolLen
 		        
-		      elseif bytes = 0 then
-		        r = ""
-		        pos = pos + firstLine.LenB + eolLen + eolLen
+		      case "+" // Simple string
+		        r = firstLine.MidB( 2 )
+		        pos = pos + firstLine.LenB + eolLen
 		        
-		      else
-		        r = s.MidB( pos + firstLine.LenB + eolLen, bytes )
-		        pos = pos + firstLine.LenB + eolLen + bytes + eolLen
+		      case "-" // Error
+		        r = new RedisError( firstLine.MidB( 2 ) )
+		        pos = pos + firstLine.LenB + eolLen
 		        
-		      end if
+		      case "$" // Bulk string
+		        dim bytes as integer = firstLine.MidB( 2 ).Val
+		        if bytes = -1 then
+		          //
+		          // Null
+		          //
+		          r = nil
+		          pos = pos + firstLine.LenB + eolLen
+		          
+		        elseif bytes = 0 then
+		          r = ""
+		          pos = pos + firstLine.LenB + eolLen + eolLen
+		          
+		        else
+		          r = s.MidB( pos + firstLine.LenB + eolLen, bytes )
+		          pos = pos + firstLine.LenB + eolLen + bytes + eolLen
+		          
+		        end if
+		        
+		      case "*" // Array
+		        dim ub as integer = firstLine.MidB( 2 ).Val - 1
+		        pos = pos + firstLine.LenB + eolLen
+		        
+		        dim arr() as variant
+		        redim arr( ub )
+		        
+		        for i as integer = 0 to ub
+		          arr( i ) = InterpretResponse( s, pos, true )
+		        next
+		        
+		        r = arr
+		        
+		      end select
 		      
-		    case "*" // Array
-		      dim ub as integer = firstLine.MidB( 2 ).Val - 1
-		      pos = pos + firstLine.LenB + eolLen
-		      
-		      dim arr() as variant
-		      redim arr( ub )
-		      
-		      for i as integer = 0 to ub
-		        arr( i ) = InterpretResponse( s, pos )
-		      next
-		      
-		      r = arr
-		      
-		    end select
+		    end if
 		    
-		  end if
+		    if useArr then
+		      rArr.Append r
+		    else
+		      exit
+		    end if
+		    
+		  loop until pos > sLen
 		  
-		  return r
+		  if useArr then
+		    return rArr
+		  else
+		    return r
+		  end if
 		  
 		End Function
 	#tag EndMethod
@@ -704,13 +903,16 @@ Class Redis_MTC
 		    pattern = "*"
 		  end if
 		  
-		  dim arr() as variant = Execute( "KEYS", pattern )
-		  
+		  dim v as variant = Execute( "KEYS", pattern )
 		  dim r() as string
-		  redim r( arr.Ubound )
-		  for i as integer = 0 to arr.Ubound
-		    r( i ) = arr( i ).StringValue
-		  next
+		  
+		  if not zIsPipeline then
+		    dim arr() as variant = v
+		    redim r( arr.Ubound )
+		    for i as integer = 0 to arr.Ubound
+		      r( i ) = arr( i ).StringValue
+		    next
+		  end if
 		  
 		  return r
 		  
@@ -726,10 +928,18 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function Ping(msg As String = "") As String
+		  dim v as variant
+		  
 		  if msg = "" then
-		    return Execute( "PING", nil )
+		    v = Execute( "PING", nil )
 		  else
-		    return Execute( "PING", msg )
+		    v = Execute( "PING", msg )
+		  end if
+		  
+		  if zIsPipeline then
+		    return ""
+		  else
+		    return v.StringValue
 		  end if
 		  
 		End Function
@@ -749,8 +959,8 @@ Class Redis_MTC
 		Sub Rename(oldKey As String, newKey As String, errorIfExists As Boolean = False)
 		  if errorIfExists then
 		    
-		    dim cnt as integer = Execute( "RENAMENX", oldKey, newKey ).IntegerValue
-		    if cnt = 0 then
+		    dim v as variant = Execute( "RENAMENX", oldKey, newKey )
+		    if not zIsPipeline and v.IntegerValue = 0 then
 		      RaiseException 0, "Key """ + newKey + """ already exists"
 		    end if
 		    
@@ -765,6 +975,10 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function Scan(pattern As String = "") As String()
+		  if zIsPipeline then
+		    RaiseException 0, "SCAN is not available within a Pipeline"
+		  end if
+		  
 		  dim parts( 0 ) as string
 		  if pattern <> "" then
 		    parts.Append "MATCH"
@@ -814,7 +1028,13 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function SetBit(key As String, startB As Integer, value As Integer) As Integer
-		  return Execute( "SETBIT", key, str( startB ), str( value ) ).IntegerValue
+		  dim v as variant = Execute( "SETBIT", key, str( startB ), str( value ) )
+		  if zIsPipeline then
+		    return -3
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
@@ -848,9 +1068,13 @@ Class Redis_MTC
 		    parts.Append p.Right
 		  next
 		  
-		  dim cnt as integer = Execute( "MSETNX", parts ).IntegerValue
-		  return cnt <> 0
+		  dim v as variant = Execute( "MSETNX", parts )
 		  
+		  if zIsPipeline then
+		    return true
+		  else
+		    return v.IntegerValue <> 0
+		  end if
 		End Function
 	#tag EndMethod
 
@@ -862,7 +1086,14 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function SetRange(key As String, startB As Integer, value As String) As Integer
-		  return Execute( "SETRANGE", key, str( startB ), value ).IntegerValue
+		  dim v as variant = Execute( "SETRANGE", key, str( startB ), value )
+		  
+		  if zIsPipeline then
+		    return 0
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
@@ -875,25 +1106,48 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function StrLen(key As String) As Integer
-		  return Execute( "STRLEN", key ).IntegerValue
+		  dim v as variant = Execute( "STRLEN", key )
+		  
+		  if zIsPipeline then
+		    return -3
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function TimeToLiveMs(key As String) As Integer
-		  dim r as integer = Execute( "PTTL", key ).IntegerValue
+		  dim v as variant = Execute( "PTTL", key )
 		  
-		  if r = -2 then
-		    raise new KeyNotFoundException
+		  if zIsPipeline then
+		    
+		    return -3
+		    
+		  else
+		    dim r as integer = v.IntegerValue
+		    
+		    if r = -2 then
+		      raise new KeyNotFoundException
+		    end if
+		    
+		    return r
+		    
 		  end if
-		  
-		  return r
 		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Function Touch(keys() As String) As Integer
-		  return Execute( "TOUCH", keys ).IntegerValue
+		  dim v as variant = Execute( "TOUCH", keys )
+		  
+		  if zIsPipeline then
+		    return -3
+		  else
+		    return v.IntegerValue
+		  end if
+		  
 		End Function
 	#tag EndMethod
 
@@ -906,11 +1160,17 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function Type(key As String) As String
-		  dim t as string = Execute( "TYPE", key ).StringValue
-		  if t = "none" then
-		    raise new KeyNotFoundException
+		  dim v as variant = Execute( "TYPE", key )
+		  
+		  if zIsPipeline then
+		    return ""
+		  else
+		    dim t as string = v.StringValue
+		    if t = "none" then
+		      raise new KeyNotFoundException
+		    end if
+		    return t
 		  end if
-		  return t
 		End Function
 	#tag EndMethod
 
@@ -1113,6 +1373,16 @@ Class Redis_MTC
 			Group="ID"
 			InitialValue="-2147483648"
 			Type="Integer"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="IsPipeline"
+			Group="Behavior"
+			Type="Boolean"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="LastCommand"
+			Group="Behavior"
+			Type="String"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="LastErrorCode"

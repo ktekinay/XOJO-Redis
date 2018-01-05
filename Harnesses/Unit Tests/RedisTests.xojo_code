@@ -466,6 +466,29 @@ Inherits TestGroup
 		    Assert.AreSame "xxx", r.Get( "xut:key" + str( i ) ), i.ToText
 		  next
 		  
+		  r.StartPipeline
+		  
+		  for i as integer = 0 to kUB step 4
+		    dim keys() as string
+		    for x as integer = 0 to 3
+		      keys.Append "xut:key" + str( i + x )
+		    next
+		    call r.GetMultiple( keys )
+		  next
+		  
+		  arr = r.FlushPipeline
+		  Assert.AreEqual CType( ( kUB ) / 4, Int32 ), arr.Ubound
+		  
+		  for i as integer = 0 to arr.Ubound
+		    dim v as variant = arr( i )
+		    Assert.IsTrue v.IsArray, "IsArray"
+		    dim subArr() as variant = v
+		    Assert.AreEqual CType( 3, Int32 ), subArr.Ubound
+		    for x as integer = 0 to subArr.Ubound
+		      Assert.AreEqual "xxx", subArr( x ).StringValue, subArr( x ).StringValue.ToText
+		    next
+		  next
+		  
 		  call r.Delete( r.Scan( "xut:*" ) )
 		  
 		End Sub
