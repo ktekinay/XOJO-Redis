@@ -420,82 +420,70 @@ Class Redis_MTC
 		  
 		  if IsFlushingPipeline then
 		    //
-		    // cmd is good
+		    // command is irrelevant
 		    //
 		    #if DebugBuild then
 		      cmd = cmd // A place to break
 		    #endif
+		    
+		  elseif cmd = "" then
+		    return nil
 		    
 		  elseif parameters is nil or parameters.Ubound = -1 then
 		    //
-		    // cmd is good
+		    // command is good
 		    //
 		    #if DebugBuild then
 		      cmd = cmd // A place to break
 		    #endif
-		    
-		    if zIsPipeline then
-		      PipelineIndex = PipelineIndex + 1
-		      if Pipeline.Ubound < PipelineIndex then
-		        redim Pipeline( PipelineIndex * 2 )
-		      end if
-		      Pipeline( PipelineIndex ) = cmd
-		    end if
 		    
 		  else
 		    
 		    dim redisArrCount as integer = parameters.Ubound + 2
 		    dim trueArrCount as integer = redisArrCount * 2 + 1
 		    
-		    dim raw() as string
-		    dim rawIndex as integer = -1
-		    if zIsPipeline then
-		      raw = Pipeline
-		      while ( PipelineIndex + trueArrCount ) > raw.Ubound
-		        redim raw( raw.Ubound * 2 )
-		      wend
-		      rawIndex = PipelineIndex
-		    else
-		      redim raw( trueArrCount - 1 )
-		    end if
+		    dim arr() as string
+		    redim arr( trueArrCount )
+		    dim arrIndex as integer = -1
 		    
-		    rawIndex = rawIndex + 1
-		    raw( rawIndex ) = "*" + str( redisArrCount )
+		    arrIndex = arrIndex + 1
+		    arr( arrIndex ) = "*" + str( redisArrCount )
 		    
-		    rawIndex = rawIndex + 1
-		    raw( rawIndex ) = "$" + str( command.LenB )
-		    
-		    rawIndex = rawIndex + 1
-		    raw( rawIndex ) = command
+		    arrIndex = arrIndex + 1
+		    arr( arrIndex ) = "$" + str( cmd.LenB )
+		    arrIndex = arrIndex + 1
+		    arr( arrIndex ) = cmd
 		    
 		    for i as integer = 0 to parameters.Ubound
 		      dim p as string = parameters( i )
 		      
-		      rawIndex = rawIndex + 1
-		      raw( rawIndex ) = "$" + str( p.LenB )
-		      rawIndex = rawIndex + 1
-		      raw( rawIndex ) = p
+		      arrIndex = arrIndex + 1
+		      arr( arrIndex ) = "$" + str( p.LenB )
+		      arrIndex = arrIndex + 1
+		      arr( arrIndex ) = p
 		    next
 		    
-		    if zIsPipeline then
-		      PipelineIndex = rawIndex
-		    else
-		      cmd = join( raw, eol )
-		    end if
+		    cmd = join( arr, eol )
+		  end if
+		  
+		  zLastCommand = cmd
+		  
+		  if cmd <> "" then
+		    Socket.Write cmd + eol
+		    Socket.Flush
 		  end if
 		  
 		  if zIsPipeline and not IsFlushingPipeline then
-		    
 		    h = nil
-		    return true
+		    
+		    if cmd = "" then
+		      return false
+		    else
+		      PipelineRequests = PipelineRequests + 1
+		      return true
+		    end if
 		    
 		  else
-		    
-		    zLastCommand = cmd
-		    
-		    Socket.Write cmd
-		    Socket.Write eol
-		    Socket.Flush
 		    
 		    dim r as variant = GetReponse
 		    h = nil
@@ -599,19 +587,10 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function FlushPipeline(stopPipeline As Boolean = True) As Variant()
-		  dim arr() as variant
-		  
-		  if PipelineIndex <> -1 then
-		    dim origUbound as integer = Pipeline.Ubound
-		    
-		    IsFlushingPipeline = true
-		    redim Pipeline( PipelineIndex )
-		    arr = Execute( join( Pipeline, EOL ), nil )
-		    IsFlushingPipeline = false
-		    
-		    redim Pipeline( origUbound )
-		    PipelineIndex = -1
-		  end if
+		  IsFlushingPipeline = true
+		  dim arr() as variant = Execute( "", nil )
+		  IsFlushingPipeline = false
+		  PipelineRequests = 0
 		  
 		  zIsPipeline = not stopPipeline
 		  
@@ -688,6 +667,8 @@ Class Redis_MTC
 		Private Function GetReponse() As Variant
 		  const kDebug as boolean = DebugBuild and false
 		  
+		  dim pipelineArr() as variant
+		  
 		  #if DebugBuild then
 		    const kWaitTicks as integer = 60 * 60
 		  #else
@@ -699,46 +680,54 @@ Class Redis_MTC
 		    sw.Start
 		  #endif
 		  
-		  dim raw as string
-		  
-		  dim targetTicks as integer = Ticks + kWaitTicks
-		  
-		  Socket.Poll
-		  if Socket.BytesAvailable = 0 then
+		  do
+		    dim raw as string
+		    
+		    dim targetTicks as integer = Ticks + kWaitTicks
+		    
 		    do
-		      for i as integer =  1 to 100
-		        Socket.Poll
-		        if Socket.BytesAvailable <> 0 then
-		          exit do
+		      Socket.Poll
+		    loop until ( Socket.BytesLeftToSend = 0 and Socket.BytesAvailable <> 0 ) or Ticks > targetTicks
+		    
+		    Socket.Poll
+		    raw = Socket.ReadAll( Encodings.UTF8 )
+		    
+		    #if kDebug then
+		      sw.Stop
+		      dim logMsg as string = CurrentMethodName + ": Response took " + format( sw.ElapsedMicroseconds, "#,0" ) + " microsecs"
+		      if App.CurrentThread isa object then
+		        logMsg = logMsg + ", thread id " + str( App.CurrentThread.ThreadID )
+		      end if
+		      System.DebugLog logMsg
+		    #endif
+		    
+		    if LastErrorCode <> 0 then
+		      RaiseException LastErrorCode, "Unknown error"
+		      return nil
+		      
+		    else
+		      
+		      dim pos as integer = 1
+		      
+		      if IsFlushingPipeline then
+		        dim arr() as variant = InterpretResponse( raw, pos )
+		        if arr.Ubound = ( PipelineRequests - 1 ) then
+		          return arr
+		        else
+		          for i as integer = 0 to arr.Ubound
+		            pipelineArr.Append arr( i )
+		          next
+		          if pipelineArr.Ubound = ( PipelineRequests - 1 ) then
+		            return pipelineArr
+		          end if
 		        end if
-		      next
-		    loop until Ticks > targetTicks
-		  end if
-		  
-		  raw = Socket.ReadAll( Encodings.UTF8 )
-		  
-		  #if kDebug then
-		    sw.Stop
-		    dim logMsg as string = CurrentMethodName + ": Response took " + format( sw.ElapsedMicroseconds, "#,0" ) + " microsecs"
-		    if App.CurrentThread isa object then
-		      logMsg = logMsg + ", thread id " + str( App.CurrentThread.ThreadID )
+		        
+		      else
+		        dim v as variant = InterpretResponse( raw, pos )
+		        return v
+		      end if
 		    end if
-		    System.DebugLog logMsg
-		  #endif
-		  
-		  if LastErrorCode <> 0 then
-		    RaiseException LastErrorCode, "Unknown error"
-		    return nil
-		    
-		  else
-		    
-		    dim pos as integer = 1
-		    
-		    dim v as variant = InterpretResponse( raw, pos )
-		    return v
-		    
-		  end if
-		  
+		  loop
 		End Function
 	#tag EndMethod
 
@@ -1127,9 +1116,6 @@ Class Redis_MTC
 	#tag Method, Flags = &h0
 		Sub StartPipeline()
 		  zIsPipeline = true
-		  if Pipeline.Ubound < 100 then
-		    redim Pipeline( 100 )
-		  end if
 		  
 		End Sub
 	#tag EndMethod
@@ -1283,11 +1269,7 @@ Class Redis_MTC
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
-		Private Pipeline() As String
-	#tag EndProperty
-
-	#tag Property, Flags = &h21
-		Private PipelineIndex As Integer = -1
+		Private PipelineRequests As Integer
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
