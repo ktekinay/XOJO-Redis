@@ -411,13 +411,25 @@ Class Redis_MTC
 		End Function
 	#tag EndMethod
 
-	#tag Method, Flags = &h0
-		Function Execute(command As String, parameters() As String) As Variant
+	#tag Method, Flags = &h21
+		Private Function Execute(parameters() As String, lengths() As String) As Variant
+		  //
+		  // This assumes that all params are correct and the first item in
+		  // parameters() is the command.
+		  //
+		  // Each item in lengths() will already have a "$"
+		  //
+		  // Nills in both params mean it is flushing the pipeline.
+		  //
+		  // Nill lengths() means that the first item in parameters() is a 
+		  // fully formatted command.
+		  //
+		  
 		  static eol as string = self.EOL
 		  
 		  dim h as new SemaphoreHolder( CommandSemaphore )
 		  
-		  dim cmd as string = command
+		  dim cmd as string
 		  dim isPipeline as boolean = PipelineCount > 1
 		  
 		  if IsFlushingPipeline then
@@ -426,87 +438,18 @@ Class Redis_MTC
 		    //
 		    cmd = "" 
 		    
-		  elseif cmd = "" then
-		    return nil
-		    
-		  elseif parameters is nil or parameters.Ubound = -1 then
-		    //
-		    // command is good
-		    //
-		    #if DebugBuild then
-		      cmd = cmd // A place to break
-		    #endif
+		  elseif lengths is nil then
+		    cmd = parameters( 0 )
 		    
 		  else
 		    
-		    dim redisArrCount as integer = parameters.Ubound + 2
-		    dim trueArrCount as integer = redisArrCount * 2
-		    
-		    dim arr() as string
-		    redim arr( trueArrCount )
-		    dim arrIndex as integer = -1
-		    
-		    arrIndex = arrIndex + 1
-		    arr( arrIndex ) = "*" + str( redisArrCount )
-		    
-		    arrIndex = arrIndex + 1
-		    arr( arrIndex ) = "$" + str( cmd.LenB )
-		    arrIndex = arrIndex + 1
-		    arr( arrIndex ) = cmd
-		    
+		    dim arr() as string = array( "*" + str( parameters.Ubound + 1 ) )
 		    for i as integer = 0 to parameters.Ubound
-		      dim p as string = parameters( i )
-		      
-		      arrIndex = arrIndex + 1
-		      arr( arrIndex ) = "$" + str( p.LenB )
-		      arrIndex = arrIndex + 1
-		      arr( arrIndex ) = p
+		      arr.Append lengths( i )
+		      arr.Append parameters( i )
 		    next
 		    
 		    cmd = join( arr, eol )
-		    
-		    //
-		    // I also tried this code but it was slower
-		    //
-		    
-		    'dim trueArrCount as integer = 7 + ( ( parameters.Ubound + 1 ) * 5 )
-		    '
-		    'dim arr() as string
-		    'redim arr( trueArrCount - 1 )
-		    'dim arrIndex as integer = -1
-		    '
-		    'arrIndex = arrIndex + 1
-		    'arr( arrIndex ) = "*"
-		    'arrIndex = arrIndex + 1
-		    'arr( arrIndex ) = str( redisArrCount )
-		    'arrIndex = arrIndex + 1
-		    'arr( arrIndex ) = eol
-		    '
-		    'arrIndex = arrIndex + 1
-		    'arr( arrIndex ) = "$"
-		    'arrIndex = arrIndex + 1
-		    'arr( arrIndex ) = str( cmd.LenB )
-		    'arrIndex = arrIndex + 1
-		    'arr( arrIndex ) = eol
-		    'arrIndex = arrIndex + 1
-		    'arr( arrIndex ) = cmd
-		    '
-		    'for i as integer = 0 to parameters.Ubound
-		    'dim p as string = parameters( i )
-		    '
-		    'arrIndex = arrIndex + 1
-		    'arr( arrIndex ) = eol
-		    'arrIndex = arrIndex + 1
-		    'arr( arrIndex ) = "$"
-		    'arrIndex = arrIndex + 1
-		    'arr( arrIndex ) = str( p.LenB )
-		    'arrIndex = arrIndex + 1
-		    'arr( arrIndex ) = eol
-		    'arrIndex = arrIndex + 1
-		    'arr( arrIndex ) = p
-		    'next
-		    '
-		    'cmd = join( arr, "" )
 		  end if
 		  
 		  if cmd <> "" then
@@ -520,7 +463,7 @@ Class Redis_MTC
 		  end if
 		  
 		  if cmd = "" and PipelineQueue.Ubound <> -1 and ( _
-		     IsFlushingPipeline or _
+		    IsFlushingPipeline or _
 		    ( isPipeLine and ( PipelineQueue.Ubound + 1 ) = PipelineCount ) _
 		    ) then
 		    cmd = join( PipelineQueue, eol )
@@ -534,12 +477,7 @@ Class Redis_MTC
 		  
 		  if isPipeline and not IsFlushingPipeline then
 		    h = nil
-		    
-		    if command = "" then
-		      return false
-		    else
-		      return true
-		    end if
+		    return true
 		    
 		  else
 		    dim r as variant = GetReponse
@@ -559,6 +497,37 @@ Class Redis_MTC
 	#tag Method, Flags = &h0
 		Function Execute(command As String, ParamArray parameters() As String) As Variant
 		  return Execute( command, parameters )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function Execute(command As String, parameters() As String) As Variant
+		  if command = "" then
+		    return nil
+		  end if
+		  
+		  dim allParams() as string
+		  dim allLengths() as string
+		  
+		  dim ub as integer = if( parameters is nil, 0, parameters.Ubound + 1 )
+		  redim allParams( ub )
+		  redim allLengths( ub )
+		  
+		  allParams( 0 ) = command
+		  allLengths( 0 ) = "$" + str( command.LenB )
+		  
+		  if ub <> 0 then
+		    for i as integer = 0 to parameters.Ubound
+		      dim allIndex as integer = i + 1
+		      dim p as string = parameters( i )
+		      
+		      allParams( allIndex ) = p
+		      allLengths( allIndex ) = "$" + str( p.LenB )
+		    next
+		  end if
+		  
+		  return Execute( allParams, allLengths )
+		  
 		End Function
 	#tag EndMethod
 
@@ -645,7 +614,7 @@ Class Redis_MTC
 	#tag Method, Flags = &h0
 		Function FlushPipeline(continuePipeline As Boolean = True) As Variant()
 		  IsFlushingPipeline = true
-		  dim arr() as variant = Execute( "", nil )
+		  dim arr() as variant = Execute( nil, nil )
 		  IsFlushingPipeline = false
 		  
 		  if not ContinuePipeline then
@@ -689,12 +658,6 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function GetMultiple(ParamArray keys() As String) As Variant()
-		  return GetMultiple( keys )
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
 		Function GetMultiple(keys() As String) As Variant()
 		  dim r as variant = Execute( "MGET", keys )
 		  if r.IsArray then
@@ -705,6 +668,12 @@ Class Redis_MTC
 		    return arr
 		  end if
 		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function GetMultiple(ParamArray keys() As String) As Variant()
+		  return GetMultiple( keys )
 		End Function
 	#tag EndMethod
 
@@ -1063,54 +1032,34 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function Set(key As String, value As String, expireMilliseconds As Integer = 0, mode As SetMode = SetMode.Always) As Boolean
-		  if expireMilliseconds <= 0 then
-		    //
-		    // Simple case
-		    //
-		    static eol as string = self.EOL
+		  dim params() as string = array( "SET", key, value )
+		  dim lengths() as string = array( "$3", "$" + str( key.LenB ), "$" + str( value.LenB ) )
+		  
+		  if expireMilliseconds > 0 then
+		    params.Append "PX"
+		    lengths.Append "$2"
 		    
-		    dim arrCount as string = "*3"
-		    
-		    dim modeString as string
-		    select case mode
-		    case SetMode.IfExists
-		      modeString = eol + "$2" + eol + "XX"
-		      arrCount = "*4"
-		    case SetMode.IfNotExists
-		      modeString = eol + "$2" + eol + "NX"
-		      arrCount = "*4"
-		    end select
-		    
-		    dim cmd as string = _
-		    arrCount + eol + _
-		    "$3" + eol + "SET" + eol + _
-		    "$" + str( key.LenB ) + eol + key + eol + _
-		    "$" + str( value.LenB ) + eol + value + _
-		    modeString
-		    
-		    dim r as variant = Execute( cmd, nil )
-		    return not r.IsNull
-		    
-		  else
-		    
-		    dim parts() as string = array( key, value )
-		    
-		    if expireMilliseconds > 0 then
-		      parts.Append "PX"
-		      parts.Append str( expireMilliseconds )
-		    end if
-		    
-		    select case mode
-		    case SetMode.IfExists
-		      parts.Append "XX"
-		    case SetMode.IfNotExists
-		      parts.Append "NX"
-		    end select
-		    
-		    dim r as variant = Execute( "SET", parts )
-		    return not r.IsNull
-		    
+		    dim ex as string = str( expireMilliseconds )
+		    params.Append ex
+		    lengths.Append "$" + str( ex.LenB )
 		  end if
+		  
+		  select case mode
+		  case SetMode.Always
+		    //
+		    // Nothing to add
+		    //
+		  case SetMode.IfExists
+		    params.Append "XX"
+		    lengths.Append "$2"
+		  case SetMode.IfNotExists
+		    params.Append "NX"
+		    lengths.Append "$2"
+		  end select
+		  
+		  dim r as variant = Execute( params, lengths )
+		  return not r.IsNull
+		  
 		End Function
 	#tag EndMethod
 
