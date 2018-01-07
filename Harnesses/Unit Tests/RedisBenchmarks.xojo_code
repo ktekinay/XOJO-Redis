@@ -5,7 +5,7 @@ Inherits TestGroup
 		Sub SetTest()
 		  dim r as new Redis_MTC
 		  
-		  dim key as string = "key:__rand_int__"
+		  dim key as string = "xut:__rand_int__"
 		  dim data as string = "xxx"
 		  
 		  dim sw as new Stopwatch_MTC
@@ -27,35 +27,46 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub SetWithPipelineTest()
+		  #if not DebugBuild then
+		    #pragma BackgroundTasks false
+		    #pragma NilObjectChecking false
+		    #pragma StackOverflowChecking false
+		    #pragma BoundsChecking false
+		  #endif
+		  
 		  const kPipelines as integer = 10
 		  
 		  Assert.Message "With " + kPipelines.ToText + " pipelines"
 		  
 		  dim r as new Redis_MTC
-		  r.StartPipeline
 		  
-		  dim key as string = "key:__rand_int__"
+		  dim key as string = "xut:__rand_int__"
 		  dim data as string = "xxx"
+		  
+		  'call r.Set( key, data )
+		  'dim cmd as string = r.LastCommand
+		  'dim cmd as string = "SET " + key + " " + data
+		  'dim params() as string = array( key, data )
 		  
 		  dim sw as new Stopwatch_MTC
 		  dim swFlush as new Stopwatch_MTC
 		  
-		  dim pipecount as integer
+		  r.StartPipeline( kPipelines )
+		  
 		  for i as integer = 1 to kReps
 		    sw.Start
+		    'call r.Execute( "SET", params )
+		    'call r.Execute( "SET", key, data )
+		    'call r.Execute( cmd, nil )
 		    call r.Set( key, data )
 		    sw.Stop
-		    
-		    pipecount = pipecount + 1
-		    if pipecount = kPipelines then
-		      sw.Start
-		      swFlush.Start
-		      call r.FlushPipeline( false )
-		      sw.Stop
-		      swFlush.Stop
-		      pipecount = 0
-		    end if
 		  next i
+		  
+		  swFlush.Start
+		  dim arr() as variant = r.FlushPipeline( false )
+		  swFlush.Stop
+		  
+		  Assert.AreEqual CType( kReps - 1, Int32 ), arr.Ubound
 		  
 		  r.Delete key
 		  
@@ -64,6 +75,13 @@ Inherits TestGroup
 		  format( sw.ElapsedSeconds, "#,0.0##" ).ToText + "s, avg " + _
 		  format( avg, "#,0.0##" ).ToText + "/s"
 		  Assert.Pass "Flush took " + format( swFlush.ElapsedSeconds, "#,0.0##" ).ToText + "s"
+		  
+		  dim combined as double = sw.ElapsedSeconds + swFlush.ElapsedSeconds
+		  avg = kReps / combined
+		  Assert.Pass "Combined took " + _
+		  format( combined, "#,0.0##" ).ToText + "s, avg " + _
+		  format( avg, "#,0.0##" ).ToText + "/s"
+		  
 		End Sub
 	#tag EndMethod
 

@@ -456,7 +456,7 @@ Inherits TestGroup
 		    Assert.IsTrue r.Set( "xut:key" + str( i ), "xxx" )
 		  next
 		  
-		  dim arr() as variant = r.FlushPipeline
+		  dim arr() as variant = r.FlushPipeline( false )
 		  Assert.AreEqual kUB, arr.Ubound
 		  
 		  for i as integer = 0 to kUB
@@ -476,7 +476,8 @@ Inherits TestGroup
 		    call r.GetMultiple( keys )
 		  next
 		  
-		  arr = r.FlushPipeline
+		  arr = r.FlushPipeline( false )
+		  
 		  Assert.AreEqual CType( ( kUB ) / 4, Int32 ), arr.Ubound
 		  
 		  for i as integer = 0 to arr.Ubound
