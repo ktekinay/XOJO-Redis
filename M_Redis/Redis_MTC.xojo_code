@@ -520,7 +520,7 @@ Class Redis_MTC
 		  end if
 		  
 		  if cmd = "" and PipelineQueue.Ubound <> -1 and ( _
-		     IsFlushingPipeline or _
+		    IsFlushingPipeline or _
 		    ( isPipeLine and ( PipelineQueue.Ubound + 1 ) = PipelineCount ) _
 		    ) then
 		    cmd = join( PipelineQueue, eol )
@@ -1074,10 +1074,12 @@ Class Redis_MTC
 		    dim modeString as string
 		    select case mode
 		    case SetMode.IfExists
-		      modeString = eol + "$2" + eol + "XX"
+		      static modeStringXX as string = eol + "$2" + eol + "XX"
+		      modeString = modeStringXX
 		      arrCount = "*4"
 		    case SetMode.IfNotExists
-		      modeString = eol + "$2" + eol + "NX"
+		      static modeStringNX as string = eol + "$2" + eol + "NX"
+		      modeString = modeStringNX
 		      arrCount = "*4"
 		    end select
 		    
