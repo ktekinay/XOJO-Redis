@@ -2,7 +2,66 @@
 Protected Class RedisBenchmarks
 Inherits TestGroup
 	#tag Method, Flags = &h0
+		Sub PingBulkTest()
+		  #if not DebugBuild then
+		    #pragma BackgroundTasks false
+		    #pragma NilObjectChecking false
+		    #pragma StackOverflowChecking false
+		    #pragma BoundsChecking false
+		  #endif
+		  
+		  dim r as new Redis_MTC
+		  
+		  dim sw as new Stopwatch_MTC
+		  
+		  for i as integer = 1 to kReps
+		    sw.Start
+		    call r.Ping( "PONG" )
+		    sw.Stop
+		  next
+		  
+		  dim avg as double = kReps / sw.ElapsedSeconds
+		  Assert.Pass format( kReps, "#,0" ).ToText + " requests took " + format( sw.ElapsedSeconds, "#,0.0##" ).ToText + "s, avg " + _
+		  format( avg, "#,0.0##" ).ToText + "/s"
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub PingInlineTest()
+		  #if not DebugBuild then
+		    #pragma BackgroundTasks false
+		    #pragma NilObjectChecking false
+		    #pragma StackOverflowChecking false
+		    #pragma BoundsChecking false
+		  #endif
+		  
+		  dim r as new Redis_MTC
+		  
+		  dim sw as new Stopwatch_MTC
+		  
+		  for i as integer = 1 to kReps
+		    sw.Start
+		    call r.Ping
+		    sw.Stop
+		  next
+		  
+		  dim avg as double = kReps / sw.ElapsedSeconds
+		  Assert.Pass format( kReps, "#,0" ).ToText + " requests took " + format( sw.ElapsedSeconds, "#,0.0##" ).ToText + "s, avg " + _
+		  format( avg, "#,0.0##" ).ToText + "/s"
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub SetTest()
+		  #if not DebugBuild then
+		    #pragma BackgroundTasks false
+		    #pragma NilObjectChecking false
+		    #pragma StackOverflowChecking false
+		    #pragma BoundsChecking false
+		  #endif
+		  
 		  dim r as new Redis_MTC
 		  
 		  dim key as string = "xut:__rand_int__"
@@ -33,8 +92,6 @@ Inherits TestGroup
 		    #pragma StackOverflowChecking false
 		    #pragma BoundsChecking false
 		  #endif
-		  
-		  const kPipelines as integer = 10
 		  
 		  Assert.Message "With " + kPipelines.ToText + " pipelines"
 		  
@@ -85,6 +142,9 @@ Inherits TestGroup
 		End Sub
 	#tag EndMethod
 
+
+	#tag Constant, Name = kPipelines, Type = Double, Dynamic = False, Default = \"10", Scope = Private
+	#tag EndConstant
 
 	#tag Constant, Name = kReps, Type = Double, Dynamic = False, Default = \"100000", Scope = Private
 	#tag EndConstant
