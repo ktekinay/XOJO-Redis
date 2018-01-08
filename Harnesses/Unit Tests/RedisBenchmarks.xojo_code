@@ -143,7 +143,7 @@ Inherits TestGroup
 	#tag EndMethod
 
 
-	#tag Constant, Name = kPipelines, Type = Double, Dynamic = False, Default = \"11", Scope = Private
+	#tag Constant, Name = kPipelines, Type = Double, Dynamic = False, Default = \"10", Scope = Private
 	#tag EndConstant
 
 	#tag Constant, Name = kReps, Type = Double, Dynamic = False, Default = \"100000", Scope = Private

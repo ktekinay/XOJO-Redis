@@ -470,10 +470,11 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub PipelineTest()
-		  dim r as new Redis_MTC
-		  r.StartPipeline
+		  const kUB as Int32 = 999
 		  
-		  const kUB as Int32 = 99
+		  dim r as new Redis_MTC
+		  r.StartPipeline 7
+		  
 		  for i as integer = 0 to kUB
 		    Assert.IsTrue r.Set( "xut:key" + str( i ), "xxx" )
 		  next
@@ -488,7 +489,7 @@ Inherits TestGroup
 		    Assert.AreSame "xxx", r.Get( "xut:key" + str( i ) ), i.ToText
 		  next
 		  
-		  r.StartPipeline
+		  r.StartPipeline 13
 		  
 		  for i as integer = 0 to kUB step 4
 		    dim keys() as string
