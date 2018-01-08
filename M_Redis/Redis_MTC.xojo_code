@@ -367,50 +367,6 @@ Class Redis_MTC
 		End Sub
 	#tag EndMethod
 
-	#tag Method, Flags = &h21
-		Private Function Escape(v As Variant) As String
-		  //
-		  // Handle encoding
-		  //
-		  
-		  dim s as string
-		  
-		  if v.Type = Variant.TypeText then
-		    dim t as text = v.TextValue
-		    s = t
-		    v = s
-		  end if
-		  
-		  if v.Type = Variant.TypeString then
-		    s = v.StringValue
-		    
-		    if s.Encoding is nil then
-		      if Encodings.UTF8.IsValidData( s ) then
-		        s = s.DefineEncoding( Encodings.UTF8 )
-		      else
-		        s = s.DefineEncoding( Encodings.SystemDefault )
-		        s = s.ConvertEncoding( Encodings.UTF8 )
-		      end if
-		      
-		    elseif s.Encoding <> Encodings.UTF8 then
-		      s = s.ConvertEncoding( Encodings.UTF8 )
-		      
-		    end if
-		    
-		    s = s.ReplaceAll( "\", "\\" )
-		    s = s.ReplaceAll( """", "\""" )
-		    s = """" + s + """"
-		    
-		  else
-		    s = v.StringValue
-		    
-		  end if
-		  
-		  return s
-		  
-		End Function
-	#tag EndMethod
-
 	#tag Method, Flags = &h0
 		Function Execute(command As String, ParamArray parameters() As String) As Variant
 		  return Execute( command, parameters )
