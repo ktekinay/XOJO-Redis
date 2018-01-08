@@ -412,6 +412,28 @@ Inherits TestGroup
 		End Sub
 	#tag EndMethod
 
+	#tag Method, Flags = &h0
+		Sub ObjectEncodingTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.Set( "xut:key", "value", 30 )
+		  dim enc as string = r.ObjectEncoding( "xut:key" )
+		  Assert.AreEqual "embstr", enc
+		  
+		  #pragma BreakOnExceptions false
+		  try
+		    call r.ObjectEncoding( "xut:key3" )
+		    Assert.Fail "Key should not exist"
+		  catch err as KeyNotFoundException
+		    Assert.Pass "Key doesn't exist"
+		  end try
+		  #pragma BreakOnExceptions default
+		  
+		  
+		  r.Delete( "xut:key" )
+		End Sub
+	#tag EndMethod
+
 	#tag Method, Flags = &h21
 		Private Sub Pause(milliseconds As Integer)
 		  dim targetMicroseconds as double = Microseconds + ( milliseconds * 1000.0 )
@@ -730,19 +752,27 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Sub TouchTest()
+		Sub TouchAndObjectIdleTimeTest()
 		  dim r as new Redis_MTC
 		  
 		  Assert.IsTrue r.Set( "xut:key1", "value", 30 )
-		  Assert.IsTrue r.Set( "xut:key2", "another", 60 )
+		  Assert.IsTrue r.Set( "xut:key2", "another", 30 )
+		  
+		  Assert.AreEqual 0, r.ObjectIdleTime( "xut:key1" )
+		  Pause 3
 		  
 		  Assert.AreEqual 2, r.Touch( "xut:key1", "xut:key2", "xut:key3" )
 		  
-		  Pause 20
+		  Assert.IsTrue r.ObjectIdleTime( "xut:key1" ) < 2
 		  
-		  Assert.AreEqual 1, r.Touch( "xut:key2" )
-		  dim ttl as integer= r.TimeToLiveMs( "xut:key2" )
-		  Assert.IsTrue ttl > 50, "TTL should be more than " + ttl.ToText
+		  #pragma BreakOnExceptions false
+		  try
+		    call r.ObjectIdleTime( "xut:key3" )
+		    Assert.Fail "Key should not exist"
+		  catch err as KeyNotFoundException
+		    Assert.Pass "Key doesn't exist"
+		  end try
+		  #pragma BreakOnExceptions default
 		  
 		  call r.Delete( "xut:key1", "xut:key2" )
 		End Sub

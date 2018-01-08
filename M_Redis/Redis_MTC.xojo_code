@@ -940,6 +940,33 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function ObjectEncoding(key As String) As String
+		  dim r as variant = MaybeSend( "", array( "OBJECT", "ENCODING", key ) )
+		  if IsPipeline or not r.IsNull then
+		    return r.StringValue
+		  else
+		    raise new KeyNotFoundException
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ObjectIdleTime(key As String) As Integer
+		  dim r as variant = MaybeSend( "", array( "OBJECT", "IDLETIME", key ) )
+		  
+		  if IsPipeline then
+		    return -1
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub Persist(key As String)
 		  call MaybeSend( "", array( "PERSIST", key ) )
 		  
