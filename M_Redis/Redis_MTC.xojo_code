@@ -23,12 +23,12 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function BitAnd(destKey As String, key1 As String, key2 As String, ParamArray moreKeys() As String) As Integer
-		  dim params() as string = array( "AND", destKey, key1, key2 )
+		  dim params() as string = array( "BITOP", "AND", destKey, key1, key2 )
 		  for i as integer = 0 to moreKeys.Ubound
 		    params.Append moreKeys( i )
 		  next
 		  
-		  dim v as variant = Execute( "BITOP", params )
+		  dim v as variant = MaybeSend( "", params ) 
 		  
 		  if IsPipeline then
 		    return 0
@@ -41,7 +41,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function BitCount(key As String) As Integer
-		  dim v as variant = Execute( "BITCOUNT", key )
+		  dim v as variant = MaybeSend( "", array( "BITCOUNT", key ) )
 		  
 		  if IsPipeline then
 		    return 0
@@ -54,7 +54,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function BitCount(key As String, startB As Integer, endB As Integer) As Integer
-		  dim v as variant = Execute( "BITCOUNT", key, str( startB ), str( endB ) )
+		  dim v as variant = MaybeSend( "", array( "BITCOUNT", key, str( startB ), str( endB ) ) )
 		  
 		  if IsPipeline then
 		    return 0
@@ -67,7 +67,7 @@ Class Redis_MTC
 	#tag Method, Flags = &h0, Description = 5479706520697320696E2074686520666F726D2075362C20693136
 		Function BitFieldGet(key As String, type As String, offset As Integer, isByteOffset As Boolean = False) As Int64
 		  dim offsetString as string = if( isByteOffset, "#", "" ) + str( offset )
-		  dim v as variant = Execute( "BITFIELD", key, "GET", type, offsetString )
+		  dim v as variant = MaybeSend( "", array( "BITFIELD", key, "GET", type, offsetString ) )
 		  
 		  if IsPipeline then
 		    return 0
@@ -82,7 +82,7 @@ Class Redis_MTC
 		Function BitFieldIncrementBy(key As String, type As String, offset As Integer, value As Int64, isByteOffset As Boolean = False, overflow As Overflows = Overflows.Wrap) As Int64
 		  dim offsetString as string = if( isByteOffset, "#", "" ) + str( offset )
 		  
-		  dim params() as string = array( key )
+		  dim params() as string = array( "BITFIELD", key )
 		  if overflow <> Overflows.Wrap then
 		    params.Append "OVERFLOW"
 		    select case overflow
@@ -98,7 +98,7 @@ Class Redis_MTC
 		  params.Append offsetString
 		  params.Append str( value )
 		  
-		  dim v as variant = Execute( "BITFIELD", params )
+		  dim v as variant = MaybeSend( "", params )
 		  
 		  if IsPipeline then
 		    return 0
@@ -113,7 +113,7 @@ Class Redis_MTC
 	#tag Method, Flags = &h0
 		Function BitFieldSet(key As String, type As String, offset As Integer, value As Int64, isByteOffset As Boolean = False) As Int64
 		  dim offsetString as string = if( isByteOffset, "#", "" ) + str( offset )
-		  dim v as variant = Execute( "BITFIELD", key, "SET", type, offsetString, str( value ) )
+		  dim v as variant = MaybeSend( "", array( "BITFIELD", key, "SET", type, offsetString, str( value ) ) )
 		  
 		  if IsPipeline then
 		    return 0
@@ -127,7 +127,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function BitNot(destKey As String, key As String) As Integer
-		  dim v as variant = Execute( "BITOP", "NOT", destKey, key )
+		  dim v as variant = MaybeSend( "", array( "BITOP", "NOT", destKey, key ) )
 		  
 		  if IsPipeline then
 		    return 0
@@ -140,12 +140,12 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function BitOr(destKey As String, key1 As String, key2 As String, ParamArray moreKeys() As String) As Integer
-		  dim params() as string = array( "OR", destKey, key1, key2 )
+		  dim params() as string = array( "BITOP", "OR", destKey, key1, key2 )
 		  for i as integer = 0 to moreKeys.Ubound
 		    params.Append moreKeys( i )
 		  next
 		  
-		  dim v as variant = Execute( "BITOP", params )
+		  dim v as variant = MaybeSend( "", params )
 		  
 		  if IsPipeline then
 		    return 0
@@ -158,7 +158,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function BitPos(key As String, value As Integer, startByteB As Integer = 0, endByteB As Integer = -1) As Integer
-		  dim params() as string = array( key, str( value ) )
+		  dim params() as string = array( "BITPOS", key, str( value ) )
 		  if startByteB > 0 or endByteB > -1 then
 		    params.Append str( startByteB )
 		    if endByteB > -1 then
@@ -166,7 +166,7 @@ Class Redis_MTC
 		    end if
 		  end if
 		  
-		  dim v as variant = Execute( "BITPOS", params )
+		  dim v as variant = MaybeSend( "", params )
 		  
 		  if IsPipeline then
 		    return 0
@@ -179,12 +179,12 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function BitXor(destKey As String, key1 As String, key2 As String, ParamArray moreKeys() As String) As Integer
-		  dim params() as string = array( "XOR", destKey, key1, key2 )
+		  dim params() as string = array( "BITOP", "XOR", destKey, key1, key2 )
 		  for i as integer = 0 to moreKeys.Ubound
 		    params.Append moreKeys( i )
 		  next
 		  
-		  dim v as variant = Execute( "BITOP", params )
+		  dim v as variant = MaybeSend( "", params )
 		  
 		  if IsPipeline then
 		    return 0
@@ -201,7 +201,7 @@ Class Redis_MTC
 		    pattern = "*"
 		  end if
 		  
-		  dim v as variant = Execute( "CONFIG", "GET", pattern )
+		  dim v as variant = MaybeSend( "", array( "CONFIG", "GET", pattern ) )
 		  
 		  if IsPipeline then
 		    
@@ -223,7 +223,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Sub ConfigSet(parameter As String, value As String)
-		  call Execute( "CONFIG", "SET", parameter, value )
+		  call MaybeSend( "", array( "CONFIG", "SET", parameter, value ) )
 		  
 		  if parameter = kConfigRequirePass and value <> "" then
 		    Auth value
@@ -290,7 +290,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function Decrement(key As String) As Integer
-		  dim v as variant = Execute( "DECR", key )
+		  dim v as variant = MaybeSend( "", array( "DECR", key ) )
 		  
 		  if IsPipeline then
 		    return 0
@@ -303,7 +303,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function DecrementBy(key As String, value As Integer) As Integer
-		  dim v as variant = Execute( "DECRBY", key, str( value ) )
+		  dim v as variant = MaybeSend( "", array( "DECRBY", key, str( value ) ) )
 		  
 		  if IsPipeline then
 		    return 0
@@ -493,7 +493,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Sub Expire(key As String, milliseconds As Integer)
-		  dim r as variant = Execute( "PEXPIRE", key, str( milliseconds ) )
+		  dim r as variant = MaybeSend( "", array( "PEXPIRE", key, str( milliseconds ) ) )
 		  if r.IntegerValue = 0 then
 		    raise new KeyNotFoundException
 		  end if
@@ -512,7 +512,7 @@ Class Redis_MTC
 		  
 		  dim unixTimestamp as Int64 = target.TotalSeconds - baseDate.TotalSeconds - ( target.GMTOffset * 60.0 * 60.0 )
 		  
-		  dim r as variant = Execute( "EXPIREAT", key, str( unixTimestamp ) )
+		  dim r as variant = MaybeSend( "", array( "EXPIREAT", key, str( unixTimestamp ) ) )
 		  if r.IntegerValue = 0 then
 		    raise new KeyNotFoundException
 		  end if
@@ -525,7 +525,7 @@ Class Redis_MTC
 		  if CommandFlushAll = "" then
 		    CommandFlushAll = "FLUSHALL" + if( MajorVersion >= 4, " ASYNC", "" )
 		  end if
-		  call Execute( CommandFlushAll )
+		  call MaybeSend( CommandFlushAll, nil )
 		  
 		End Sub
 	#tag EndMethod
@@ -535,7 +535,7 @@ Class Redis_MTC
 		  if CommandFlushDB = "" then
 		    CommandFlushDB = "FLUSHDB" + if( MajorVersion >= 4, " ASYNC", "" )
 		  end if
-		  call Execute( CommandFlushDB, nil )
+		  call MaybeSend( CommandFlushDB, nil )
 		  
 		End Sub
 	#tag EndMethod
@@ -574,7 +574,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function GetBit(key As String, startB As Integer) As Integer
-		  dim v as variant = Execute( "GETBIT", key, str( startB ) )
+		  dim v as variant = MaybeSend( "", array( "GETBIT", key, str( startB ) ) )
 		  
 		  if IsPipeline then
 		    return 0
@@ -588,7 +588,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function GetMultiple(keys() As String) As Variant()
-		  dim r as variant = Execute( "MGET", keys )
+		  dim r as variant = Execute( "MGET", keys ) // Let Execute do this work
 		  if r.IsArray then
 		    return r
 		  else
@@ -608,7 +608,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function GetRange(key As String, startB As Integer, endB As Integer) As String
-		  dim v as variant = Execute( "GETRANGE", key, str( startB ), str( endB ) )
+		  dim v as variant = MaybeSend( "", array( "GETRANGE", key, str( startB ), str( endB ) ) )
 		  
 		  if IsPipeline then
 		    return ""
@@ -681,7 +681,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function GetSet(key As String, value As String) As String
-		  dim v as variant = Execute( "GETSET", key, value )
+		  dim v as variant = MaybeSend( "", array( "GETSET", key, value ) )
 		  
 		  if IsPipeline then
 		    return ""
@@ -867,7 +867,7 @@ Class Redis_MTC
 		    pattern = "*"
 		  end if
 		  
-		  dim v as variant = Execute( "KEYS", pattern )
+		  dim v as variant = MaybeSend( "", array( "KEYS", pattern ) )
 		  dim r() as string
 		  
 		  if not IsPipeline then
@@ -985,7 +985,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Sub Persist(key As String)
-		  call Execute( "PERSIST", key )
+		  call MaybeSend( "", array( "PERSIST", key ) )
 		  
 		End Sub
 	#tag EndMethod
@@ -1023,14 +1023,14 @@ Class Redis_MTC
 		Sub Rename(oldKey As String, newKey As String, errorIfExists As Boolean = False)
 		  if errorIfExists then
 		    
-		    dim v as variant = Execute( "RENAMENX", oldKey, newKey )
+		    dim v as variant = MaybeSend( "", array( "RENAMENX", oldKey, newKey ) )
 		    if not IsPipeline and v.IntegerValue = 0 then
 		      RaiseException 0, "Key """ + newKey + """ already exists"
 		    end if
 		    
 		  else
 		    
-		    call Execute( "RENAME", oldKey, newKey )
+		    call MaybeSend( "", array( "RENAME", oldKey, newKey ) )
 		    
 		  end if
 		  
@@ -1097,7 +1097,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function SetBit(key As String, startB As Integer, value As Integer) As Integer
-		  dim v as variant = Execute( "SETBIT", key, str( startB ), str( value ) )
+		  dim v as variant = MaybeSend( "", array( "SETBIT", key, str( startB ), str( value ) ) )
 		  if IsPipeline then
 		    return -3
 		  else
@@ -1123,7 +1123,7 @@ Class Redis_MTC
 		    parts.Append p.Right
 		  next
 		  
-		  call Execute( "MSET", parts )
+		  call Execute( "MSET", parts ) // Let Execute do this work
 		End Sub
 	#tag EndMethod
 
@@ -1137,7 +1137,7 @@ Class Redis_MTC
 		    parts.Append p.Right
 		  next
 		  
-		  dim v as variant = Execute( "MSETNX", parts )
+		  dim v as variant = Execute( "MSETNX", parts ) // Let Execute do this work
 		  
 		  if IsPipeline then
 		    return true
@@ -1155,7 +1155,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function SetRange(key As String, startB As Integer, value As String) As Integer
-		  dim v as variant = Execute( "SETRANGE", key, str( startB ), value )
+		  dim v as variant = MaybeSend( "", array( "SETRANGE", key, str( startB ), value ) )
 		  
 		  if IsPipeline then
 		    return 0
@@ -1187,7 +1187,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function StrLen(key As String) As Integer
-		  dim v as variant = Execute( "STRLEN", key )
+		  dim v as variant = MaybeSend( "", array( "STRLEN", key ) )
 		  
 		  if IsPipeline then
 		    return -3
