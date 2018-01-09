@@ -833,6 +833,145 @@ Class Redis_MTC
 		End Function
 	#tag EndMethod
 
+	#tag Method, Flags = &h0
+		Function LIndex(key As String, index As Integer) As String
+		  dim r as variant = MaybeSend( "", array( "LINDEX", key, str( index ) ) )
+		  if IsPipeline then
+		    return ""
+		  else
+		    return r.StringValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function LLen(key As String) As Integer
+		  dim r as variant = MaybeSend( "", array( "LLEN", key ) )
+		  
+		  if IsPipeline then
+		    return -1
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function LPush(key As String, values() As String) As Integer
+		  dim params() as string
+		  redim params( values.Ubound + 2 )
+		  params( 0 ) = "LPUSH"
+		  params( 1 ) = key
+		  for i as integer = 0 to values.Ubound
+		    params.Append values( i + 2 )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params ) // Let Execute handle it
+		  
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function LPush(key As String, value As String, ParamArray moreValues() As String) As Integer
+		  dim params() as string
+		  redim params( moreValues.Ubound + 3 )
+		  params( 0 ) = "LPUSH"
+		  params( 1 ) = key
+		  params( 2 ) = value
+		  for i as integer = 0 to moreValues.Ubound
+		    params( i + 3 ) = moreValues( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function LPushX(key As String, values() As String) As Integer
+		  dim params() as string
+		  redim params( values.Ubound + 2 )
+		  params( 0 ) = "LPUSHX"
+		  params( 1 ) = key
+		  for i as integer = 0 to values.Ubound
+		    params.Append values( i + 2 )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params ) // Let Execute handle it
+		  
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function LPushX(key As String, value As String, ParamArray moreValues() As String) As Integer
+		  dim params() as string
+		  redim params( moreValues.Ubound + 3 )
+		  params( 0 ) = "LPUSHX"
+		  params( 1 ) = key
+		  params( 2 ) = value
+		  for i as integer = 0 to moreValues.Ubound
+		    params( i + 3 ) = moreValues( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function LRange(key As String, start As Integer, stop As Integer) As String()
+		  dim arr() as string
+		  
+		  dim r as variant = MaybeSend( "", array( "LRANGE", key, str( start ), str( stop ) ) )
+		  
+		  if not IsPipeline then
+		    dim varr() as variant = r
+		    redim arr( varr.Ubound )
+		    for i as integer = 0 to varr.Ubound
+		      arr( i ) = varr( i ).StringValue
+		    next
+		  end if
+		  
+		  return arr
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub LTrim(key As String, start As Integer, stop As Integer)
+		  dim r as variant = MaybeSend( "", array( "LTRIM", key, str( start ), str( stop ) ) )
+		  
+		  if not IsPipeline and not r.BooleanValue then
+		    RaiseException 0, "LTRIM failed"
+		  end if
+		  
+		End Sub
+	#tag EndMethod
+
 	#tag Method, Flags = &h21
 		Private Function MaybeSend(formattedCommand As String, commandParts() As String) As Variant
 		  //
@@ -1012,6 +1151,90 @@ Class Redis_MTC
 		  end if
 		  
 		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function RPush(key As String, values() As String) As Integer
+		  dim params() as string
+		  redim params( values.Ubound + 2 )
+		  params( 0 ) = "RPUSH"
+		  params( 1 ) = key
+		  for i as integer = 0 to values.Ubound
+		    params.Append values( i + 2 )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params ) // Let Execute handle it
+		  
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function RPush(key As String, value As String, ParamArray moreValues() As String) As Integer
+		  dim params() as string
+		  redim params( moreValues.Ubound + 3 )
+		  params( 0 ) = "RPUSH"
+		  params( 1 ) = key
+		  params( 2 ) = value
+		  for i as integer = 0 to moreValues.Ubound
+		    params( i + 3 ) = moreValues( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function RPushX(key As String, values() As String) As Integer
+		  dim params() as string
+		  redim params( values.Ubound + 2 )
+		  params( 0 ) = "RPUSHX"
+		  params( 1 ) = key
+		  for i as integer = 0 to values.Ubound
+		    params.Append values( i + 2 )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params ) // Let Execute handle it
+		  
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function RPushX(key As String, value As String, ParamArray moreValues() As String) As Integer
+		  dim params() as string
+		  redim params( moreValues.Ubound + 3 )
+		  params( 0 ) = "RPUSHX"
+		  params( 1 ) = key
+		  params( 2 ) = value
+		  for i as integer = 0 to moreValues.Ubound
+		    params( i + 3 ) = moreValues( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0

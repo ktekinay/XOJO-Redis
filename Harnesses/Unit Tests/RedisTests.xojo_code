@@ -413,6 +413,35 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub ListFunctonsTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual 2, r.LPush( "xut:list1", "value1", "value2" )
+		  Assert.AreEqual 3, r.LPushX( "xut:list1", "value3" )
+		  Assert.AreEqual 0, r.LPushX( "xut:listxxx", "value3" )
+		  
+		  Assert.AreEqual 5, r.RPush( "xut:list1", "value4", "value5" )
+		  Assert.AreEqual 6, r.RPushX( "xut:list1", "value6" )
+		  Assert.AreEqual 0, r.RPushX( "xut:listxxx", "value3" )
+		  
+		  Assert.AreEqual 6, r.LLen( "xut:list1" )
+		  
+		  dim arr() as string = r.LRange( "xut:list1", 0, -1 )
+		  Assert.AreEqual CType( 5, Int32 ), arr.Ubound
+		  
+		  arr = r.LRange( "xut:list1", 0, 1 )
+		  Assert.AreEqual CType( 1, Int32 ), arr.Ubound
+		  
+		  Assert.AreEqual "value6", r.LIndex( "xut:list1", -1 )
+		  
+		  r.LTrim "xut:list1", 0, 4
+		  Assert.AreEqual 5, r.LLen( "xut:list1" )
+		  
+		  r.Delete "xut:list1"
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub ObjectEncodingTest()
 		  dim r as new Redis_MTC
 		  
