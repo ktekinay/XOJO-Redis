@@ -579,19 +579,13 @@ Class Redis_MTC
 		Private Function GetReponse() As Variant
 		  const kDebug as boolean = DebugBuild and false
 		  
-		  #if DebugBuild then
-		    const kWaitTicks as integer = 60 * 60
-		  #else
-		    const kWaitTicks as integer = 60 * 10
-		  #endif
-		  
 		  #if kDebug then
 		    dim sw as new Stopwatch_MTC
 		    sw.Start
 		  #endif
 		  
 		  dim timedOut as boolean = true
-		  dim targetTicks as integer = Ticks + kWaitTicks
+		  dim targetTicks as integer = Ticks + ( TimeoutSecs * 60 )
 		  
 		  do
 		    if Buffer.Ubound <> -1 then
@@ -1338,6 +1332,10 @@ Class Redis_MTC
 
 	#tag Property, Flags = &h21
 		Private Socket As TCPSocket
+	#tag EndProperty
+
+	#tag Property, Flags = &h0
+		TimeoutSecs As Integer = 30
 	#tag EndProperty
 
 	#tag ComputedProperty, Flags = &h0
