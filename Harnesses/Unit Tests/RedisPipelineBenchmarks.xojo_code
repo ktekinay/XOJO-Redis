@@ -3,6 +3,12 @@ Protected Class RedisPipelineBenchmarks
 Inherits TestGroup
 	#tag Method, Flags = &h0
 		Sub SetTest()
+		  SetTestBase kPipelines, kReps
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub SetTestBase(pipelines As Integer, reps As Integer)
 		  #if not DebugBuild then
 		    #pragma BackgroundTasks false
 		    #pragma NilObjectChecking false
@@ -10,9 +16,10 @@ Inherits TestGroup
 		    #pragma BoundsChecking false
 		  #endif
 		  
-		  Assert.Message "With " + kPipelines.ToText + " pipelines"
-		  
 		  dim r as new Redis_MTC
+		  r.StartPipeline( pipelines )
+		  
+		  Assert.Message "With " + pipelines.ToText + " pipelines"
 		  
 		  dim key as string = "xut:__rand_int__"
 		  dim data as string = "xxx"
@@ -25,9 +32,7 @@ Inherits TestGroup
 		  dim sw as new Stopwatch_MTC
 		  dim swFlush as new Stopwatch_MTC
 		  
-		  r.StartPipeline( kPipelines )
-		  
-		  for i as integer = 1 to kReps
+		  for i as integer = 1 to reps
 		    sw.Start
 		    'call r.Execute( "SET", params )
 		    'call r.Execute( "SET", key, data )
@@ -40,22 +45,28 @@ Inherits TestGroup
 		  dim arr() as variant = r.FlushPipeline( false )
 		  swFlush.Stop
 		  
-		  Assert.AreEqual CType( kReps - 1, Int32 ), arr.Ubound
+		  Assert.AreEqual CType( reps - 1, Int32 ), arr.Ubound
 		  
 		  r.Delete key
 		  
-		  dim avg as double = kReps / sw.ElapsedSeconds
-		  Assert.Pass format( kReps, "#,0" ).ToText + " keys took " + _
+		  dim avg as double = reps / sw.ElapsedSeconds
+		  Assert.Pass format( reps, "#,0" ).ToText + " keys took " + _
 		  format( sw.ElapsedSeconds, "#,0.0##" ).ToText + "s, avg " + _
 		  format( avg, "#,0.0##" ).ToText + "/s"
 		  Assert.Pass "Flush took " + format( swFlush.ElapsedSeconds, "#,0.0##" ).ToText + "s"
 		  
 		  dim combined as double = sw.ElapsedSeconds + swFlush.ElapsedSeconds
-		  avg = kReps / combined
+		  avg = reps / combined
 		  Assert.Pass "Combined took " + _
 		  format( combined, "#,0.0##" ).ToText + "s, avg " + _
 		  format( avg, "#,0.0##" ).ToText + "/s"
 		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub SetWith1Test()
+		  SetTestBase 1, kReps / 5
 		End Sub
 	#tag EndMethod
 

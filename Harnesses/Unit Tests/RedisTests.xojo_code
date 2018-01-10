@@ -805,6 +805,18 @@ Inherits TestGroup
 		End Sub
 	#tag EndMethod
 
+	#tag Method, Flags = &h21
+		Private Sub Redis_ResponseInPipeline(sender As Redis_MTC)
+		  AsyncComplete
+		  
+		  dim results() as variant = sender.FlushPipeline( false )
+		  
+		  Assert.AreEqual 99, CType( results.Ubound, integer )
+		  
+		  RemoveHandler sender.ResponseInPipeline, WeakAddressOf Redis_ResponseInPipeline
+		End Sub
+	#tag EndMethod
+
 	#tag Method, Flags = &h0
 		Sub RenameTest()
 		  dim r as new Redis_MTC
@@ -828,6 +840,22 @@ Inherits TestGroup
 		    Assert.Pass "Could not rename to existing key"
 		  end try
 		  #pragma BreakOnExceptions default
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub ResponseInPipelineEventTest()
+		  dim r as new Redis_MTC
+		  Redis = r
+		  AddHandler r.ResponseInPipeline, WeakAddressOf Redis_ResponseInPipeline
+		  
+		  r.StartPipeline( 10 )
+		  for i as integer = 0 to 99
+		    Assert.IsTrue r.Set( "xut:key", "xxx" )
+		  next
+		  
+		  AsyncAwait 2
 		  
 		End Sub
 	#tag EndMethod

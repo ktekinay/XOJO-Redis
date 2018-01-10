@@ -249,6 +249,11 @@ Class Redis_MTC
 		  Socket.Port = port
 		  AddHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
 		  
+		  PipelineCheckTimer = new Timer
+		  AddHandler PipelineCheckTimer.Action, WeakAddressOf PipelineCheckTimer_Action
+		  PipelineCheckTimer.Period = 20
+		  PipelineCheckTimer.Mode = Timer.ModeOff
+		  
 		  Socket.Connect
 		  dim startMs as double = Microseconds
 		  do
@@ -376,6 +381,13 @@ Class Redis_MTC
 		  if Socket isa object then
 		    Socket.Close
 		    RemoveHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
+		    Socket = nil
+		  end if
+		  
+		  if PipelineCheckTimer isa object then
+		    PipelineCheckTimer.Mode = Timer.ModeOff
+		    RemoveHandler PipelineCheckTimer.Action, WeakAddressOf PipelineCheckTimer_Action
+		    PipelineCheckTimer = nil
 		  end if
 		  
 		End Sub
@@ -525,7 +537,8 @@ Class Redis_MTC
 		  IsFlushingPipeline = false
 		  
 		  if not ContinuePipeline then
-		    PipelineCount = 1
+		    PipelineCount = 0
+		    PipelineCheckTimer.Mode = Timer.ModeOff
 		  end if
 		  
 		  return arr
@@ -598,7 +611,7 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h21
-		Private Function GetReponse() As Variant
+		Private Function GetResponse() As Variant
 		  const kDebug as boolean = DebugBuild and false
 		  
 		  #if kDebug then
@@ -1401,7 +1414,7 @@ Class Redis_MTC
 		  dim h as new SemaphoreHolder( CommandSemaphore )
 		  
 		  dim cmd as string
-		  dim isPipeline as boolean = PipelineCount > 1
+		  dim isPipeline as boolean = PipelineCount > 0
 		  
 		  if IsFlushingPipeline or formattedCommand <> "" then
 		    cmd = formattedCommand
@@ -1455,7 +1468,7 @@ Class Redis_MTC
 		    return true
 		    
 		  else
-		    dim r as variant = GetReponse
+		    dim r as variant = GetResponse
 		    h = nil
 		    
 		    if r.Type = Variant.TypeObject and r isa RedisError then
@@ -1533,6 +1546,26 @@ Class Redis_MTC
 		  end if
 		  
 		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub PipelineCheckTimer_Action(sender As Timer)
+		  dim requests as integer = RequestCount
+		  
+		  if not IsPipeline then
+		    sender.Mode = Timer.ModeOff
+		    
+		  elseif ResultCount < requests then
+		    Results = FlushPipeline( true )
+		    RequestCount = requests // Restore this
+		    
+		    if ResultCount = requests then
+		      RaiseEvent ResponseInPipeline
+		    end if
+		    
+		  end if
+		  
+		End Sub
 	#tag EndMethod
 
 	#tag Method, Flags = &h21
@@ -2124,14 +2157,8 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h21
 		Private Sub Socket_DataAvailable(sender As TCPSocket)
-		  dim oldUb as integer = Buffer.Ubound
-		  
 		  dim data as string = sender.ReadAll( Encodings.UTF8 )
 		  Buffer.Append data
-		  
-		  if IsPipeline and oldUb = -1 then
-		    RaiseEvent ResponseInPipeline
-		  end if
 		  
 		End Sub
 	#tag EndMethod
@@ -2356,11 +2383,19 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Sub StartPipeline(cnt As Integer = 10)
+		  if cnt < 0 then
+		    cnt = 0
+		  end if
+		  
 		  if cnt < PipelineCount then
-		    RaiseException 0, "Can't assign a value less than the current PipelineCount"
+		    RaiseException 0, "Can't assign a value less than the current Pipeline count"
 		  end if
 		  
 		  PipelineCount = cnt
+		  if IsPipeline then
+		    PipelineCheckTimer.Mode = Timer.ModeMultiple
+		  end if
+		  
 		  
 		End Sub
 	#tag EndMethod
@@ -2547,7 +2582,7 @@ Class Redis_MTC
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
-			  return PipelineCount > 1
+			  return PipelineCount > 0
 			  
 			End Get
 		#tag EndGetter
@@ -2587,7 +2622,11 @@ Class Redis_MTC
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
-		Private PipelineCount As Integer = 1
+		Private PipelineCheckTimer As Timer
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private PipelineCount As Integer = 0
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
@@ -2598,14 +2637,14 @@ Class Redis_MTC
 		Private RequestCount As Integer
 	#tag EndProperty
 
-	#tag ComputedProperty, Flags = &h0
+	#tag ComputedProperty, Flags = &h21
 		#tag Getter
 			Get
 			  return Results.Ubound + 1
 			  
 			End Get
 		#tag EndGetter
-		ResultCount As Integer
+		Private ResultCount As Integer
 	#tag EndComputedProperty
 
 	#tag Property, Flags = &h21
