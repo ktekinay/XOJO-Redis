@@ -747,12 +747,7 @@ Class Redis_MTC
 		  elseif r.IsNull then
 		    raise new KeyNotFoundException
 		  else
-		    dim d as new Dictionary
-		    dim arr() as variant = r
-		    for i as integer = 0 to arr.Ubound step 2
-		      d.Value( arr( i ).StringValue ) = arr( i + 1 ).StringValue
-		    next
-		    return d
+		    return HashArrayToDictionary( r )
 		  end if
 		End Function
 	#tag EndMethod
@@ -888,11 +883,7 @@ Class Redis_MTC
 		    dim arr() as variant = result
 		    cursor = arr( 0 ).StringValue
 		    dim keys() as variant = arr( 1 )
-		    for i as integer = 0 to keys.Ubound step 2
-		      dim k as string = keys( i )
-		      dim v as string = keys( i + 1 )
-		      r.Value( k ) = v
-		    next
+		    r = HashArrayToDictionary( keys, r )
 		  loop until cursor = "0"
 		  
 		  return r
@@ -920,7 +911,7 @@ Class Redis_MTC
 		  dim fields() as variant = valueDict.Keys
 		  dim values() as variant = valueDict.Values
 		  
-		  for i as integer = 0 to keys.Ubound
+		  for i as integer = 0 to fields.Ubound
 		    params.Append fields( i ).StringValue
 		    params.Append values( i ).StringValue
 		  next
@@ -1773,6 +1764,42 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function SAdd(key As String, members() As String) As Integer
+		  dim params() as string
+		  redim params( members.Ubound + 2 )
+		  params( 0 ) = "SADD"
+		  params( 1 ) = key
+		  for i as integer = 0 to members.Ubound
+		    params( i + 2 ) = members( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return -3
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SAdd(key As String, member As String, ParamArray moreMembers() As String) As Integer
+		  dim allMembers() as string
+		  redim allMembers( moreMembers.Ubound + 1 )
+		  allMembers( 0 ) = member
+		  for i as integer = 0 to moreMembers.Ubound
+		    allMembers( i + 1 ) = moreMembers( i )
+		  next
+		  
+		  return SAdd( key, allMembers )
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function Scan(pattern As String = "") As String()
 		  if IsPipeline then
 		    RaiseException 0, "SCAN is not available within a Pipeline"
@@ -1804,6 +1831,63 @@ Class Redis_MTC
 		  loop until cursor = "0"
 		  
 		  return r
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SCard(key As String) As Integer
+		  dim r as variant = MaybeSend( "", array( "SCARD", key ) )
+		  
+		  if IsPipeline then
+		    return -3
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SDifference(keys() As String) As String()
+		  return SetFunction( "SDIFF", keys )
+		  
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SDifference(key As String, ParamArray moreKeys() As String) As String()
+		  dim allKeys() as string
+		  redim allKeys( moreKeys.Ubound + 1 )
+		  allKeys( 0 ) = key
+		  for i as integer = 0 to moreKeys.Ubound
+		    allKeys( i + 1 ) = moreKeys( i )
+		  next
+		  
+		  return SetFunction( "SDIFF", allKeys )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SDifferenceTo(dest As String, keys() As String) As Integer
+		  return SetFunctionTo( "SDIFFSTORE", dest, keys )
+		  
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SDifferenceTo(dest As String, key As String, ParamArray moreKeys() As String) As Integer
+		  dim allKeys() as string
+		  redim allKeys( moreKeys.Ubound + 1 )
+		  allKeys( 0 ) = key
+		  for i as integer = 0 to moreKeys.Ubound
+		    allKeys( i + 1 ) = moreKeys( i )
+		  next
+		  
+		  return SetFunctionTo( "SDIFFSTORE", dest, allKeys )
 		End Function
 	#tag EndMethod
 
@@ -1850,6 +1934,49 @@ Class Redis_MTC
 		    return v.IntegerValue
 		  end if
 		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Function SetFunction(cmd As String, keys() As String) As String()
+		  dim r as variant = Execute( cmd, keys ) // Let Execute do this work
+		  
+		  if IsPipeline then
+		    dim arr() as string
+		    return arr
+		    
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		    
+		  else
+		    return VariantToStringArray( r )
+		    
+		  end if
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Function SetFunctionTo(cmd As String, dest As String, keys() As String) As Integer
+		  dim params() as string
+		  redim params( keys.Ubound + 2 )
+		  params( 0 ) = cmd
+		  params( 1 ) = dest
+		  for i as integer = 0 to keys.Ubound
+		    params( i + 2 ) = keys( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return -3
+		    
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		    
+		  else
+		    return r.IntegerValue
+		    
+		  end if
 		End Function
 	#tag EndMethod
 
@@ -1908,6 +2035,89 @@ Class Redis_MTC
 		  else
 		    return v.IntegerValue
 		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SIntersection(keys() As String) As String()
+		  return SetFunction( "SINTER", keys )
+		  
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SIntersection(key As String, ParamArray moreKeys() As String) As String()
+		  dim allKeys() as string
+		  redim allKeys( moreKeys.Ubound + 1 )
+		  allKeys( 0 ) = key
+		  for i as integer = 0 to moreKeys.Ubound
+		    allKeys( i + 1 ) = moreKeys( i )
+		  next
+		  
+		  return SetFunction( "SINTER", allKeys )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SIntersectionTo(dest As String, keys() As String) As Integer
+		  return SetFunctionTo( "SINTERSTORE", dest, keys )
+		  
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SIntersectionTo(dest As String, key As String, ParamArray moreKeys() As String) As Integer
+		  dim allKeys() as string
+		  redim allKeys( moreKeys.Ubound + 1 )
+		  allKeys( 0 ) = key
+		  for i as integer = 0 to moreKeys.Ubound
+		    allKeys( i + 1 ) = moreKeys( i )
+		  next
+		  
+		  return SetFunctionTo( "SINTERSTORE", dest, allKeys )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SIsMember(key As String, member As String) As Boolean
+		  dim r as variant = MaybeSend( "", array( "SISMEMBER", key, member ) )
+		  return r.BooleanValue
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SMembers(key As String) As String()
+		  dim r as variant = MaybeSend( "", array( "SMEMBERS", key ) )
+		  
+		  if IsPipeline then
+		    dim arr() as string
+		    return arr
+		    
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		    
+		  else
+		    dim varr() as variant = r
+		    dim arr() as string
+		    redim arr( varr.Ubound )
+		    for i as integer = 0 to varr.Ubound
+		      arr( i ) = varr( i ).StringValue
+		    next
+		    return arr
+		    
+		  end if
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SMove(source As String, dest As String, member As String) As Boolean
+		  dim r as variant = MaybeSend( "", array( "SMOVE", source, dest, member ) )
+		  
+		  return r.BooleanValue
 		  
 		End Function
 	#tag EndMethod
@@ -2012,6 +2222,133 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function SPop(key As String) As String
+		  dim r as variant = MaybeSend( "", array( "SPOP", key ) )
+		  
+		  if IsPipeline then
+		    return ""
+		    
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		    
+		  else
+		    return r.StringValue
+		    
+		  end if
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SPop(key As String, count As Integer) As String()
+		  dim r as variant = MaybeSend( "", array( "SPOP", key, str( count ) ) )
+		  
+		  if IsPipeline then
+		    dim arr() as string
+		    return arr
+		    
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		    
+		  else
+		    return VariantToStringArray( r )
+		    
+		  end if
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SRandomMember(key As String) As String
+		  dim r as variant = MaybeSend( "", array( "SRANDMEMBER", key ) )
+		  
+		  if IsPipeline then
+		    return ""
+		    
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		    
+		  else
+		    return r.StringValue
+		    
+		  end if
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SRemove(key As String, members() As String) As Integer
+		  dim params() as string
+		  redim params( members.Ubound + 2 )
+		  params( 0 ) = "SREM"
+		  params( 1 ) = key
+		  for i as integer = 0 to members.Ubound
+		    params( i + 2 ) = members( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return -3
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SRemove(key As String, member As String, ParamArray moreMembers() As String) As Integer
+		  dim allMembers() as string
+		  redim allMembers( moreMembers.Ubound + 1 )
+		  allMembers( 0 ) = member
+		  for i as integer = 0 to moreMembers.Ubound
+		    allMembers( i + 1 ) = moreMembers( i )
+		  next
+		  
+		  return SRemove( key, allMembers )
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SScan(key As String, pattern As String = "*") As String()
+		  if IsPipeline then
+		    RaiseException 0, "SSCAN is not available within a Pipeline"
+		  end if
+		  
+		  dim parts() as string = array( "SSCAN", key, "", "COUNT", "20" )
+		  if pattern <> "" then
+		    parts.Append "MATCH"
+		    parts.Append pattern
+		  end if
+		  
+		  dim r() as string
+		  dim cursor as string = "0"
+		  
+		  dim allMembers as new Dictionary
+		  
+		  do
+		    parts( 2 ) = cursor
+		    dim result as variant = MaybeSend( "", parts )
+		    if result.IsNull then
+		      raise new KeyNotFoundException
+		    end if
+		    dim arr() as variant = result
+		    cursor = arr( 0 ).StringValue
+		    dim members() as variant = arr( 1 )
+		    for i as integer = 0 to members.Ubound
+		      dim member as string = members( i )
+		      if not allMembers.HasKey( member ) then
+		        r.Append member
+		        allMembers.Value( member ) = nil
+		      end if
+		    next
+		  loop until cursor = "0"
+		  
+		  return r
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub StartPipeline(cnt As Integer = 10)
 		  if cnt < PipelineCount then
 		    RaiseException 0, "Can't assign a value less than the current PipelineCount"
@@ -2032,6 +2369,48 @@ Class Redis_MTC
 		    return v.IntegerValue
 		  end if
 		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SUnion(keys() As String) As String()
+		  return SetFunction( "SUNION", keys )
+		  
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SUnion(key As String, ParamArray moreKeys() As String) As String()
+		  dim allKeys() as string
+		  redim allKeys( moreKeys.Ubound + 1 )
+		  allKeys( 0 ) = key
+		  for i as integer = 0 to moreKeys.Ubound
+		    allKeys( i + 1 ) = moreKeys( i )
+		  next
+		  
+		  return SetFunction( "SUNION", allKeys )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SUnionTo(dest As String, keys() As String) As Integer
+		  return SetFunctionTo( "SUNIONSTORE", dest, keys )
+		  
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SUnionTo(dest As String, key As String, ParamArray moreKeys() As String) As Integer
+		  dim allKeys() as string
+		  redim allKeys( moreKeys.Ubound + 1 )
+		  allKeys( 0 ) = key
+		  for i as integer = 0 to moreKeys.Ubound
+		    allKeys( i + 1 ) = moreKeys( i )
+		  next
+		  
+		  return SetFunctionTo( "SUNIONSTORE", dest, allKeys )
 		End Function
 	#tag EndMethod
 
@@ -2079,13 +2458,6 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function Touch(ParamArray keys() As String) As Integer
-		  return Touch( keys )
-		  
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
 		Function Touch(keys() As String) As Integer
 		  dim v as variant = Execute( "TOUCH", keys ) // Let Execute do the work of combining arrays
 		  
@@ -2094,6 +2466,13 @@ Class Redis_MTC
 		  else
 		    return v.IntegerValue
 		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function Touch(ParamArray keys() As String) As Integer
+		  return Touch( keys )
 		  
 		End Function
 	#tag EndMethod

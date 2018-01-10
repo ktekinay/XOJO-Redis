@@ -927,6 +927,123 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub SetFunctionsTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual 6, r.SAdd( "xut:set", "1", "2", "3", "4", "5", "6" )
+		  Assert.AreEqual 2, r.SRemove( "xut:set", "5", "6", "7" )
+		  
+		  dim members() as string = r.SScan( "xut:set" )
+		  Assert.AreEqual 3, CType( members.Ubound, Integer )
+		  
+		  Assert.IsTrue r.SIsMember( "xut:set", "1" )
+		  Assert.IsFalse r.SIsMember( "xut:set", "10" )
+		  Assert.IsFalse r.SIsMember( "xut:setxxx", "1" )
+		  
+		  members = r.SMembers( "xut:set" )
+		  Assert.AreEqual 3, CType( members.Ubound, Integer )
+		  
+		  dim m as string = r.SRandomMember( "xut:set" )
+		  Assert.IsTrue members.IndexOf( m ) <> -1
+		  
+		  for i as integer = 0 to members.Ubound
+		    m = r.SPop( "xut:set" )
+		    Assert.IsTrue members.IndexOf( m ) <> -1
+		  next
+		  
+		  Assert.AreEqual members.Ubound + 1, r.SAdd( "xut:set", members ), "Add members before pop"
+		  dim popped() as string = r.SPop( "xut:set", 2 )
+		  Assert.AreEqual 1, CType( popped.Ubound, Integer )
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
+		  
+		  Assert.AreEqual members.Ubound + 1, r.SAdd( "xut:set", members )
+		  Assert.IsTrue r.SMove( "xut:set", "xut:setdest", "1" )
+		  Assert.IsFalse r.SMove( "xut:set", "xut:setdest", "100" )
+		  Assert.IsFalse r.SMove( "xut:setxxx", "xut:setdest", "1" )
+		  
+		  Assert.AreEqual "1", r.SPop( "xut:setdest" )
+		  
+		  call r.SAdd( "xut:set", members )
+		  Assert.AreEqual members.Ubound + 1, r.SCard( "xut:set" ), "Add members before diff"
+		  
+		  if true then
+		    dim diff() as string
+		    diff = r.SDifference( "xut:set" )
+		    Assert.AreEqual members.Ubound, diff.Ubound, "SDifference with single key"
+		    diff = r.SDifference( "xut:setxxx" )
+		    Assert.AreEqual -1, CType( diff.Ubound, integer ), "SDifference with unknown key"
+		  end if
+		  
+		  if true then
+		    dim inter() as string
+		    inter = r.SIntersection( "xut:set" )
+		    Assert.AreEqual members.Ubound, inter.Ubound 
+		    inter = r.SIntersection( "xut:setxxx" )
+		    Assert.AreEqual -1, CType( inter.Ubound, integer )
+		  end if
+		  
+		  if true then
+		    dim union() as string
+		    union = r.SUnion( "xut:set" )
+		    Assert.AreEqual members.Ubound, union.Ubound 
+		    union = r.SUnion( "xut:setxxx" )
+		    Assert.AreEqual -1, CType( union.Ubound, integer )
+		  end if
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
+		  call r.SAdd( "xut:set", array( "1", "2", "3" ) )
+		  call r.SAdd( "xut:set1", "3", "4", "5" )
+		  
+		  if true then
+		    dim diff() as string
+		    diff = r.SDifference( "xut:set", "xut:set1" )
+		    Assert.AreEqual 1, CType( diff.Ubound, integer )
+		  end if
+		  
+		  if true then
+		    dim inter() as string
+		    inter = r.SIntersection( "xut:set", "xut:set1" )
+		    Assert.AreEqual 0, CType( inter.Ubound, integer )
+		    Assert.AreEqual "3", inter( 0 )
+		  end if
+		  
+		  if true then
+		    dim union() as string
+		    union = r.SUnion( "xut:set", "xut:set1" )
+		    Assert.AreEqual 4, CType( union.Ubound, integer )
+		  end if
+		  
+		  if true then
+		    dim diff() as string
+		    Assert.AreEqual 2, r.SDifferenceTo( "xut:dest", "xut:set", "xut:set1" )
+		    diff = r.SMembers( "xut:dest" )
+		    Assert.AreEqual 1, CType( diff.Ubound, integer )
+		    r.Delete "xut:dest"
+		  end if
+		  
+		  if true then
+		    dim inter() as string
+		    Assert.AreEqual 1, r.SIntersectionTo( "xut:dest", "xut:set", "xut:set1" )
+		    inter = r.SMembers( "xut:dest" )
+		    Assert.AreEqual 0, CType( inter.Ubound, integer )
+		    r.Delete "xut:dest"
+		  end if
+		  
+		  if true then
+		    dim union() as string
+		    Assert.AreEqual 5, r.SUnionTo( "xut:dest", "xut:set", "xut:set1" )
+		    union = r.SMembers( "xut:dest" )
+		    Assert.AreEqual 4, CType( union.Ubound, integer )
+		    r.Delete "xut:dest"
+		  end if
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub SetGetMultipleTest()
 		  dim r as new Redis_MTC
 		  
