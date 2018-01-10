@@ -668,6 +668,306 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function HDelete(key As String, fields() As String) As Integer
+		  dim params() as string
+		  redim params( fields.Ubound + 2 )
+		  params( 0 ) = "HDEL"
+		  params( 1 ) = key
+		  for i as integer = 0 to fields.Ubound
+		    params( i + 2 ) = fields( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return -3
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function HDelete(key As String, field As String, ParamArray moreFields() As String) As Integer
+		  dim params() as string
+		  redim params( moreFields.Ubound + 3 )
+		  params( 0 ) = "HDEL"
+		  params( 1 ) = key
+		  params( 2 ) = field
+		  
+		  for i as integer = 0 to moreFields.Ubound
+		    params( i + 3 ) = moreFields( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return -3
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function HExists(key As String, field As String) As Boolean
+		  dim r as variant = MaybeSend( "", array( "HEXISTS", key, field ) )
+		  
+		  return r.BooleanValue
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function HGet(key As String, field As String) As String
+		  dim r as variant = MaybeSend( "", array( "HGET", key, field ) )
+		  
+		  if IsPipeline then
+		    return ""
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.StringValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function HGetAll(key As String) As Dictionary
+		  dim r as variant = MaybeSend( "", array( "HGETALL", key ) )
+		  
+		  if IsPipeline then
+		    return nil
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    dim d as new Dictionary
+		    dim arr() as variant = r
+		    for i as integer = 0 to arr.Ubound step 2
+		      d.Value( arr( i ).StringValue ) = arr( i + 1 ).StringValue
+		    next
+		    return d
+		  end if
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function HGetMultiple(key As String, fields() As String) As Variant()
+		  dim params() as string = array( "HMGET", key )
+		  for i as integer = 0 to fields.Ubound
+		    params.Append fields( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    dim arr() as variant
+		    return arr
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function HGetMultiple(key As String, field As String, ParamArray moreFields() As String) As Variant()
+		  dim params() as string = array( "HMGET", key, field )
+		  for i as integer = 0 to moreFields.Ubound
+		    params.Append moreFields( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    dim arr() as variant
+		    return arr
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function HIncrementBy(key As String, field As String, value As Integer) As Integer
+		  dim r as variant = MaybeSend( "", array( "HINCRBY", key, field, str( value ) ) )
+		  
+		  if IsPipeline then
+		    return 0
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function HIncrementByFloat(key As String, field As String, value As Double) As Double
+		  dim r as variant = MaybeSend( "", array( "HINCRBYFLOAT", key, field, format( value,  "-0.0#############" ) ) )
+		  
+		  if IsPipeline then
+		    return 0.0
+		  else
+		    return r.DoubleValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function HKeys(key As String) As String()
+		  dim r as variant = MaybeSend( "", array( "HKEYS", key ) )
+		  
+		  if IsPipeline then
+		    dim arr() as string
+		    return arr
+		    
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		    
+		  else
+		    dim varr() as variant = r
+		    dim arr() as string
+		    redim arr( varr.Ubound )
+		    for i as integer = 0 to varr.Ubound
+		      arr( i ) = varr( i ).StringValue
+		    next
+		    return arr
+		    
+		  end if
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function HLen(key As String) As Integer
+		  dim r as variant = MaybeSend( "", array( "HLEN", key ) )
+		  
+		  if IsPipeline then
+		    return -3
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function HScan(key As String, pattern As String = "") As Dictionary
+		  if IsPipeline then
+		    RaiseException 0, "HSCAN is not available within a Pipeline"
+		  end if
+		  
+		  dim parts() as string = array( "HSCAN", key, "", "COUNT", "20" )
+		  if pattern <> "" then
+		    parts.Append "MATCH"
+		    parts.Append pattern
+		  end if
+		  
+		  dim r as new Dictionary
+		  dim cursor as string = "0"
+		  
+		  do
+		    parts( 2 ) = cursor
+		    dim result as variant = MaybeSend( "", parts )
+		    if result.IsNull then
+		      raise new KeyNotFoundException
+		    end if
+		    dim arr() as variant = result
+		    cursor = arr( 0 ).StringValue
+		    dim keys() as variant = arr( 1 )
+		    for i as integer = 0 to keys.Ubound step 2
+		      dim k as string = keys( i )
+		      dim v as string = keys( i + 1 )
+		      r.Value( k ) = v
+		    next
+		  loop until cursor = "0"
+		  
+		  return r
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function HSet(key As String, field As String, value As String, ifNotExists As Boolean = False) As Integer
+		  dim cmd as string = if( ifNotExists, "HSETNX", "HSET" )
+		  dim r as variant = MaybeSend( "", array( cmd, key, field, value ) )
+		  
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub HSetMultiple(key As String, valueDict As Dictionary)
+		  dim params() as string = array( "HMSET", key )
+		  
+		  dim fields() as variant = valueDict.Keys
+		  dim values() as variant = valueDict.Values
+		  
+		  for i as integer = 0 to keys.Ubound
+		    params.Append fields( i ).StringValue
+		    params.Append values( i ).StringValue
+		  next
+		  
+		  call MaybeSend( "", params )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function HStrLen(key As String, field As String) As Integer
+		  dim r as variant = MaybeSend( "", array( "HSTRLEN", key, field ) )
+		  
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function HValues(key As String) As String()
+		  dim r as variant = MaybeSend( "", array( "HVALS", key ) )
+		  
+		  if IsPipeline then
+		    dim arr() as string
+		    return arr
+		    
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		    
+		  else
+		    dim varr() as variant = r
+		    dim arr() as string
+		    redim arr( varr.Ubound )
+		    for i as integer = 0 to varr.Ubound
+		      arr( i ) = varr( i ).StringValue
+		    next
+		    return arr
+		    
+		  end if
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function Increment(key As String) As Integer
 		  dim v as variant = MaybeSend( "", array( "INCR", key ) )
 		  
@@ -1478,16 +1778,16 @@ Class Redis_MTC
 		    RaiseException 0, "SCAN is not available within a Pipeline"
 		  end if
 		  
-		  dim parts() as string = array( "SCAN", "" )
+		  dim parts() as string = array( "SCAN", "", "COUNT", "20" )
 		  if pattern <> "" then
 		    parts.Append "MATCH"
 		    parts.Append pattern
 		  end if
-		  parts.Append "COUNT"
-		  parts.Append "20"
 		  
 		  dim r() as string
 		  dim cursor as string = "0"
+		  
+		  dim allKeys as new Dictionary
 		  
 		  do
 		    parts( 1 ) = cursor
@@ -1495,7 +1795,11 @@ Class Redis_MTC
 		    cursor = arr( 0 ).StringValue
 		    dim keys() as variant = arr( 1 )
 		    for i as integer = 0 to keys.Ubound
-		      r.Append keys( i )
+		      dim k as string = keys( i )
+		      if not allKeys.HasKey( k ) then
+		        r.Append k
+		        allKeys.Value( k ) = nil
+		      end if
 		    next
 		  loop until cursor = "0"
 		  
@@ -1550,6 +1854,12 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub SetMultiple(ParamArray keyValue() As Pair)
+		  SetMultiple keyValue
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub SetMultiple(keyValue() As Pair)
 		  dim parts() as string
 		  
@@ -1561,18 +1871,6 @@ Class Redis_MTC
 		  
 		  call Execute( "MSET", parts ) // Let Execute do this work
 		End Sub
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
-		Sub SetMultiple(ParamArray keyValue() As Pair)
-		  SetMultiple keyValue
-		End Sub
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
-		Function SetMultipleIfNoneExist(ParamArray keyValue() As Pair) As Boolean
-		  return SetMultipleIfNoneExist( keyValue )
-		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -1592,6 +1890,12 @@ Class Redis_MTC
 		  else
 		    return v.IntegerValue <> 0
 		  end if
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SetMultipleIfNoneExist(ParamArray keyValue() As Pair) As Boolean
+		  return SetMultipleIfNoneExist( keyValue )
 		End Function
 	#tag EndMethod
 
@@ -2064,6 +2368,12 @@ Class Redis_MTC
 			Visible=true
 			Group="ID"
 			Type="String"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="TimeoutSecs"
+			Group="Behavior"
+			InitialValue="30"
+			Type="Integer"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Top"

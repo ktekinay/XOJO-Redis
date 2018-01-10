@@ -368,6 +368,69 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub HashTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual 1, r.HSet( "xut:hash", "field1", "value" )
+		  Assert.AreEqual 0, r.HSet( "xut:hash", "field1", "newvalue" )
+		  Assert.AreEqual "newvalue", r.HGet( "xut:hash", "field1" )
+		  Assert.AreEqual 0, r.HSet( "xut:hash", "field1", "xxx", true )
+		  Assert.AreEqual "newvalue", r.HGet( "xut:hash", "field1" )
+		  Assert.AreEqual 1, r.HSet( "xut:hash", "field2", "value" )
+		  
+		  Assert.AreEqual 8, r.HStrLen( "xut:hash", "field1" )
+		  Assert.AreEqual 0, r.HStrLen( "xut:hash", "field1000" )
+		  Assert.AreEqual 0, r.HStrLen( "xut:something", "field1" )
+		  
+		  dim d as Dictionary = r.HGetAll( "xut:hash" )
+		  Assert.AreEqual 2, d.Count
+		  
+		  dim keys() as string = r.HKeys( "xut:hash" )
+		  Assert.AreEqual 1, CType( keys.Ubound, Integer )
+		  Assert.IsTrue keys.IndexOf( "field1" ) <> -1
+		  
+		  dim values() as string = r.HValues( "xut:hash" )
+		  Assert.AreEqual 1, CType( values.Ubound, Integer )
+		  Assert.IsTrue values.IndexOf( "newvalue" ) <> -1
+		  
+		  Assert.IsTrue r.HExists( "xut:hash", "field1" )
+		  Assert.IsFalse r.HExists( "xut:hash", "field1000" )
+		  Assert.IsFalse r.HExists( "xut:something", "f" )
+		  
+		  Assert.AreEqual 2, r.HLen( "xut:hash" )
+		  
+		  d = r.HScan( "xut:hash" )
+		  Assert.AreEqual 2, d.Count
+		  Assert.IsTrue d.HasKey( "field1" )
+		  Assert.AreEqual "newvalue", d.Value( "field1" ).StringValue
+		  
+		  Assert.AreEqual 2, r.HDelete( "xut:hash", "field1", "field2", "field3" )
+		  
+		  r.HSetMultiple "xut:hash", d
+		  d = r.HGetAll( "xut:hash" )
+		  Assert.AreEqual 2, d.Count
+		  Assert.IsTrue d.HasKey( "field1" )
+		  Assert.AreEqual "newvalue", d.Value( "field1" ).StringValue
+		  
+		  dim varr() as variant = r.HGetMultiple( "xut:hash", "field1", "field1000", "field2" )
+		  Assert.AreEqual 2, CType( varr.Ubound, Integer )
+		  Assert.AreEqual "newvalue", varr( 0 ).StringValue
+		  Assert.IsNil varr( 1 )
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
+		  
+		  Assert.AreEqual 1, r.HIncrementBy( "xut:hash", "field1", 1 )
+		  Assert.AreEqual 11, r.HIncrementBy( "xut:hash", "field1", 10 )
+		  
+		  Assert.AreEqual 1.0, r.HIncrementByFloat( "xut:hash", "field2", 1.0 )
+		  Assert.AreEqual -1.0, r.HIncrementByFloat( "xut:hash", "field2", -2.0 )
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub IncrementByFloatTest()
 		  dim r as new Redis_MTC
 		  
