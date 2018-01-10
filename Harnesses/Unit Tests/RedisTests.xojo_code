@@ -166,6 +166,17 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub DBSizeTest()
+		  dim r as new Redis_MTC
+		  
+		  r.SetMultiple( "xut:key1" : "value", "xut:key2" : "value2", "xut:key3" : "value3" )
+		  Assert.IsTrue r.DBSize >= 3
+		  call r.Delete( r.Scan( "xut:*" ) )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub DecrementByTest()
 		  dim r as new Redis_MTC
 		  
@@ -225,6 +236,15 @@ Inherits TestGroup
 		  end try
 		  #pragma BreakOnExceptions default
 		  
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub EchoTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual "hi", r.Echo( "hi" )
 		  
 		End Sub
 	#tag EndMethod
@@ -413,31 +433,181 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Sub ListFunctonsTest()
+		Sub ListFunctionsTest()
 		  dim r as new Redis_MTC
 		  
+		  //
+		  // LPush
+		  // LPushX
+		  //
 		  Assert.AreEqual 2, r.LPush( "xut:list1", "value1", "value2" )
 		  Assert.AreEqual 3, r.LPushX( "xut:list1", "value3" )
 		  Assert.AreEqual 0, r.LPushX( "xut:listxxx", "value3" )
 		  
+		  //
+		  // RPush
+		  // RPushX
+		  //
 		  Assert.AreEqual 5, r.RPush( "xut:list1", "value4", "value5" )
 		  Assert.AreEqual 6, r.RPushX( "xut:list1", "value6" )
 		  Assert.AreEqual 0, r.RPushX( "xut:listxxx", "value3" )
 		  
+		  //
+		  // LLen
+		  //
 		  Assert.AreEqual 6, r.LLen( "xut:list1" )
 		  
-		  dim arr() as string = r.LRange( "xut:list1", 0, -1 )
-		  Assert.AreEqual CType( 5, Int32 ), arr.Ubound
+		  //
+		  // LRange
+		  //
+		  if true then
+		    dim arr() as string = r.LRange( "xut:list1", 0, -1 )
+		    Assert.AreEqual CType( 5, Int32 ), arr.Ubound
+		    
+		    arr = r.LRange( "xut:list1", 0, 1 )
+		    Assert.AreEqual CType( 1, Int32 ), arr.Ubound
+		  end if
 		  
-		  arr = r.LRange( "xut:list1", 0, 1 )
-		  Assert.AreEqual CType( 1, Int32 ), arr.Ubound
-		  
+		  //
+		  // LIndex
+		  //
 		  Assert.AreEqual "value6", r.LIndex( "xut:list1", -1 )
 		  
+		  //
+		  // LTrim
+		  //
 		  r.LTrim "xut:list1", 0, 4
 		  Assert.AreEqual 5, r.LLen( "xut:list1" )
 		  
+		  //
+		  // LPop
+		  // RPop
+		  //
+		  Assert.AreEqual "value3", r.LPop( "xut:list1" )
+		  Assert.AreEqual "value5", r.RPop( "xut:list1" )
+		  
+		  //
+		  // LSet
+		  //
+		  r.LSet( "xut:list1", 1, "newvalue2" )
+		  Assert.AreEqual "newvalue2", r.LIndex( "xut:list1", 1 )
+		  
+		  #pragma BreakOnExceptions false
+		  try
+		    r.LSet( "xut:list1", 10, "outofrange" )
+		    Assert.Fail "No out of range error"
+		  catch err as OutOfBoundsException
+		    Assert.Pass
+		  end try
+		  #pragma BreakOnExceptions default 
+		  
+		  //
+		  // LInsertBefore
+		  // LInsertAfter
+		  //
 		  r.Delete "xut:list1"
+		  Assert.AreEqual 3, r.RPush( "xut:list1", "1", "2", "3" )
+		  
+		  Assert.AreEqual 4, r.LInsertBefore( "xut:list1", "2", "before" )
+		  Assert.AreEqual "before", r.LIndex( "xut:list1", 1 )
+		  
+		  Assert.AreEqual 5, r.LInsertAfter( "xut:list1", "2", "after" )
+		  Assert.AreEqual "after", r.LIndex( "xut:list1", 3 )
+		  
+		  //
+		  // LRem
+		  //
+		  r.Delete "xut:list1"
+		  Assert.AreEqual 7, r.RPush( "xut:list1", "1", "2", "3", "1", "1", "1", "1" )
+		  
+		  Assert.AreEqual 4, r.LRem( "xut:list1", -4, "1" ), "LRem"
+		  Assert.AreEqual "1", r.LIndex( "xut:list1", 0 ), "LRem - index 0"
+		  Assert.AreEqual "3", r.LIndex( "xut:list1", -1 ), "LRem - index -1"
+		  
+		  //
+		  // RPopLPush
+		  //
+		  Assert.AreEqual "3", r.RPopLPush( "xut:list1", "xut:list2" )
+		  
+		  //
+		  // LPopBlocking
+		  // RPopBlocking
+		  // RPopLPushBlocking
+		  //
+		  call r.Delete "xut:list1", "xut:list2"
+		  Assert.AreEqual 3, r.RPush( "xut:list2", "1", "2", "3" )
+		  
+		  if true then
+		    dim arr() as string
+		    
+		    call r.Delete "xut:list1", "xut:list2"
+		    Assert.AreEqual 3, r.RPush( "xut:list2", "1", "2", "3" )
+		    
+		    arr = r.LPopBlocking( 1, "xut:list1", "xut:list2" )
+		    Assert.AreEqual CType( 1, Int32 ), arr.Ubound, "LPopBlocking"
+		    Assert.AreEqual "xut:list2", arr( 0 )
+		    Assert.AreEqual "1", arr( 1 )
+		    
+		    call r.Delete "xut:list1", "xut:list2"
+		    Assert.AreEqual 3, r.RPush( "xut:list2", "1", "2", "3" )
+		    
+		    arr = r.LPopBlocking( 1, array( "xut:list1", "xut:list2" ) ) 
+		    Assert.AreEqual CType( 1, Int32 ), arr.Ubound, "LPopBlocking with array"
+		    Assert.AreEqual "xut:list2", arr( 0 )
+		    Assert.AreEqual "1", arr( 1 )
+		    
+		    call r.Delete "xut:list1", "xut:list2"
+		    Assert.AreEqual 3, r.RPush( "xut:list2", "1", "2", "3" )
+		    
+		    arr = r.RPopBlocking( 1, "xut:list1", "xut:list2" )
+		    Assert.AreEqual CType( 1, Int32 ), arr.Ubound, "RPopBlocking"
+		    Assert.AreEqual "xut:list2", arr( 0 )
+		    Assert.AreEqual "3", arr( 1 )
+		    
+		    call r.Delete "xut:list1", "xut:list2"
+		    Assert.AreEqual 3, r.RPush( "xut:list2", "1", "2", "3" )
+		    
+		    arr = r.RPopBlocking( 1, array( "xut:list1", "xut:list2" ) )
+		    Assert.AreEqual CType( 1, Int32 ), arr.Ubound, "RPopBlocking with array"
+		    Assert.AreEqual "xut:list2", arr( 0 )
+		    Assert.AreEqual "3", arr( 1 )
+		    
+		    call r.Delete "xut:list1", "xut:list2"
+		    
+		    dim oldTimeout as integer = r.TimeoutSecs
+		    
+		    r.TimeoutSecs = 1
+		    #pragma BreakOnExceptions false
+		    try
+		      arr = r.LPopBlocking( 2, "xut:doesn'texist" )
+		      Assert.Fail "Should have timed out"
+		    catch err as KeyNotFoundException
+		      Assert.Pass
+		    end try
+		    #pragma BreakOnExceptions default 
+		    Assert.AreEqual 1, r.TimeoutSecs
+		    r.TimeoutSecs = oldTimeout
+		    
+		    Assert.AreEqual 3, r.RPush( "xut:list1", "1", "2", "3" )
+		    Assert.AreEqual "3", r.RPopLPushBlocking( 1, "xut:list1", "xut:list2" )
+		    Assert.AreEqual "3", r.LIndex( "xut:list2", 0 )
+		  end if
+		  
+		  call r.Delete "xut:list1", "xut:list2"
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub MoveTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.Set( "xut:key", "value", 30 )
+		  Assert.AreEqual 1, r.Move( "xut:key", 1 ), "Couldn't move"
+		  r.SelectDB 1
+		  Assert.AreEqual "value", r.Get( "xut:key" )
+		  r.Delete "xut:key"
+		  r.SelectDB 0
 		End Sub
 	#tag EndMethod
 
@@ -548,6 +718,31 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub RandomKeyTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.Set( "xut:key", "value" )
+		  dim randKey as string = r.RandomKey
+		  Assert.Message "Key is " + randKey.ToText
+		  Assert.IsTrue randKey <> ""
+		  r.Delete "xut:key"
+		  
+		  if r.DBSize <> 0 then
+		    Assert.Message "Could not test for KeyNotFoundException"
+		  else
+		    #pragma BreakOnExceptions false
+		    try
+		      call r.RandomKey
+		      Assert.Fail "Should have raised KeyNotFoundException"
+		    catch err as KeyNotFoundException
+		      Assert.Pass
+		    end try
+		    #pragma BreakOnExceptions default
+		  end if
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub RenameTest()
 		  dim r as new Redis_MTC
 		  
@@ -611,6 +806,28 @@ Inherits TestGroup
 		  next
 		  
 		  call r.Delete( keys )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub SelectDBTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.IsTrue r.Set( "xut:db0", "0", 30000 )
+		  r.SelectDB 1
+		  Assert.IsTrue r.Set( "xut:db1", "1", 30000 )
+		  
+		  dim keys() as string = r.Scan( "xut:*" )
+		  Assert.AreEqual CType( 0, Int32 ), keys.Ubound, "DB 1"
+		  Assert.AreEqual "xut:db1", keys( 0 )
+		  r.Delete "xut:db1"
+		  
+		  r.SelectDB 0
+		  keys = r.Scan( "xut:*" )
+		  Assert.AreEqual CType( 0, Int32 ), keys.Ubound, "DB 0"
+		  Assert.AreEqual "xut:db0", keys( 0 )
+		  r.Delete "xut:db0"
 		  
 		End Sub
 	#tag EndMethod
@@ -701,6 +918,96 @@ Inherits TestGroup
 		  Assert.AreSame "ho there", r.Get( "xut:key" )
 		  
 		  r.Delete "xut:key"
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub SortTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual 5, r.RPush( "xut:mylist", "2", "20", "100", "10", "1" )
+		  
+		  dim arr() as string
+		  
+		  arr = r.Sort( "xut:mylist" )
+		  Assert.AreEqual 4, CType( arr.Ubound, Integer )
+		  Assert.AreEqual "1", arr( 0 )
+		  Assert.AreEqual "100", arr( 4 )
+		  
+		  arr = r.Sort( "xut:mylist", false, true )
+		  Assert.AreEqual 4, CType( arr.Ubound, Integer )
+		  Assert.AreEqual "20", arr( 0 )
+		  Assert.AreEqual "1", arr( 4 )
+		  
+		  arr = r.Sort( "xut:mylist", true, false, 0, 3 )
+		  Assert.AreEqual 2, CType( arr.Ubound, Integer )
+		  Assert.AreEqual "1", arr( 0 )
+		  Assert.AreEqual "10", arr( 2 )
+		  
+		  arr() = r.Sort( "xut:mylist", true, false, 0, -1 )
+		  Assert.AreEqual 4, CType( arr.Ubound, Integer ), "Negative count"
+		  
+		  r.SetMultiple "xut:by_1" : "100", "xut:by_2" : "20", "xut:by_10" : "10", "xut:by_20" : "2", "xut:by_100" : "1"
+		  arr() = r.Sort( "xut:mylist", true, false, 0, -1, "xut:by_*" )
+		  Assert.AreEqual 4, CType( arr.Ubound, Integer )
+		  Assert.AreEqual "100", arr( 0 )
+		  Assert.AreEqual "1", arr( 4 )
+		  
+		  r.SetMultiple "xut:object_1" : "a", "xut:object_2" : "b", "xut:object_10" : "c", "xut:object_20" : "d", "xut:object_100" : "e"
+		  arr() = r.Sort( "xut:mylist", true, false, 0, -1, "xut:by_*", array( "xut:object_*" ) )
+		  Assert.AreEqual 4, CType( arr.Ubound, Integer )
+		  Assert.AreEqual "e", arr( 0 )
+		  Assert.AreEqual "a", arr( 4 )
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub SortToTest()
+		  dim r as new Redis_MTC
+		  
+		  Assert.AreEqual 5, r.RPush( "xut:mylist", "2", "20", "100", "10", "1" )
+		  
+		  dim arr() as string
+		  
+		  Assert.AreEqual 5, r.SortTo( "xut:dest", "xut:mylist" )
+		  arr = r.LRange( "xut:dest", 0, -1 )
+		  Assert.AreEqual 4, CType( arr.Ubound, Integer )
+		  Assert.AreEqual "1", arr( 0 )
+		  Assert.AreEqual "100", arr( 4 )
+		  
+		  Assert.AreEqual 5, r.SortTo( "xut:dest", "xut:mylist", false, true )
+		  arr = r.LRange( "xut:dest", 0, -1 )
+		  Assert.AreEqual 4, CType( arr.Ubound, Integer )
+		  Assert.AreEqual "20", arr( 0 )
+		  Assert.AreEqual "1", arr( 4 )
+		  
+		  Assert.AreEqual 3, r.SortTo( "xut:dest", "xut:mylist", true, false, 0, 3 )
+		  arr = r.LRange( "xut:dest", 0, -1 )
+		  Assert.AreEqual 2, CType( arr.Ubound, Integer )
+		  Assert.AreEqual "1", arr( 0 )
+		  Assert.AreEqual "10", arr( 2 )
+		  
+		  Assert.AreEqual 5, r.SortTo( "xut:dest", "xut:mylist", true, false, 0, -1 )
+		  arr = r.LRange( "xut:dest", 0, -1 )
+		  Assert.AreEqual 4, CType( arr.Ubound, Integer ), "Negative count"
+		  
+		  r.SetMultiple "xut:by_1" : "100", "xut:by_2" : "20", "xut:by_10" : "10", "xut:by_20" : "2", "xut:by_100" : "1"
+		  Assert.AreEqual 5, r.SortTo( "xut:dest", "xut:mylist", true, false, 0, -1, "xut:by_*" )
+		  arr = r.LRange( "xut:dest", 0, -1 )
+		  Assert.AreEqual 4, CType( arr.Ubound, Integer )
+		  Assert.AreEqual "100", arr( 0 )
+		  Assert.AreEqual "1", arr( 4 )
+		  
+		  r.SetMultiple "xut:object_1" : "a", "xut:object_2" : "b", "xut:object_10" : "c", "xut:object_20" : "d", "xut:object_100" : "e"
+		  Assert.AreEqual 5, r.SortTo( "xut:dest", "xut:mylist", true, false, 0, -1, "xut:by_*", array( "xut:object_*" ) )
+		  arr = r.LRange( "xut:dest", 0, -1 )
+		  Assert.AreEqual 4, CType( arr.Ubound, Integer )
+		  Assert.AreEqual "e", arr( 0 )
+		  Assert.AreEqual "a", arr( 4 )
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
 		End Sub
 	#tag EndMethod
 

@@ -242,6 +242,7 @@ Class Redis_MTC
 		  end if
 		  
 		  CommandSemaphore = new Semaphore( 1 )
+		  TimeoutSemaphore = new Semaphore( 1 )
 		  
 		  Socket = new TCPSocket
 		  Socket.Address = host
@@ -286,6 +287,19 @@ Class Redis_MTC
 		  InitCommandDelete
 		  
 		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function DBSize() As Integer
+		  dim r as variant = MaybeSend( "DBSIZE", nil )
+		  
+		  if IsPipeline then
+		    return - 3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -365,6 +379,19 @@ Class Redis_MTC
 		  end if
 		  
 		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function Echo(msg As String) As String
+		  dim r as variant = MaybeSend( "", array( "ECHO", msg ) )
+		  
+		  if IsPipeline then
+		    return ""
+		  else
+		    return r.StringValue
+		  end if
+		  
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -585,8 +612,11 @@ Class Redis_MTC
 		  #endif
 		  
 		  dim timedOut as boolean = true
-		  dim targetTicks as integer = Ticks + ( TimeoutSecs * 60 )
+		  dim targetTicks as integer = if( TimeoutSecs > 0, Ticks + ( TimeoutSecs * 60 ), -1 )
 		  
+		  //
+		  // 0 or less means indefinite
+		  //
 		  do
 		    if Buffer.Ubound <> -1 then
 		      dim pos as integer
@@ -598,7 +628,7 @@ Class Redis_MTC
 		      exit do
 		    end if
 		    Socket.Poll
-		  loop until Ticks > targetTicks
+		  loop until targetTicks > 0 and Ticks > targetTicks
 		  
 		  #if kDebug then
 		    sw.Stop
@@ -741,6 +771,10 @@ Class Redis_MTC
 		      r = true
 		      pos = pos + firstLine.LenB + eolLen
 		      
+		    elseif firstLine = "*-1" or firstLine = "$-1" then
+		      r = nil
+		      pos = pos + firstLine.LenB + eolLen
+		      
 		    else
 		      dim firstChar as string = firstLine.LeftB( 1 )
 		      
@@ -845,6 +879,31 @@ Class Redis_MTC
 		End Function
 	#tag EndMethod
 
+	#tag Method, Flags = &h21
+		Private Function LInsert(key As String, type As String, pivot As String, value As String) As Integer
+		  dim r as variant = MaybeSend( "", array( "LINSERT", key, type, pivot, value ) )
+		  
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function LInsertAfter(key As String, pivot As String, value As String) As Integer
+		  return LInsert( key, "AFTER", pivot, value )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function LInsertBefore(key As String, pivot As String, value As String) As Integer
+		  return LInsert( key, "BEFORE", pivot, value )
+		End Function
+	#tag EndMethod
+
 	#tag Method, Flags = &h0
 		Function LLen(key As String) As Integer
 		  dim r as variant = MaybeSend( "", array( "LLEN", key ) )
@@ -855,6 +914,31 @@ Class Redis_MTC
 		    return r.IntegerValue
 		  end if
 		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function LPop(key As String) As String
+		  dim r as variant = MaybeSend( "", array( "LPOP", key ) )
+		  
+		  if IsPipeline then
+		    return ""
+		  else
+		    return r.StringValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function LPopBlocking(timeoutSecs As Integer, keys() As String) As String()
+		  return PopBlocking( "BLPOP", timeoutSecs, "", keys )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function LPopBlocking(timeoutSecs As Integer, key As String, ParamArray moreKeys() As String) As String()
+		  return PopBlocking( "BLPOP", timeoutSecs, key, moreKeys )
 		End Function
 	#tag EndMethod
 
@@ -959,6 +1043,33 @@ Class Redis_MTC
 		  return arr
 		  
 		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function LRem(key As String, count As Integer, value As String) As Integer
+		  dim r as variant = MaybeSend( "", array( "LREM", key, str( count ), value ) )
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub LSet(key As String, index As Integer, value As String)
+		  try
+		    call MaybeSend( "", array( "LSET", key, str( index ), value ) )
+		  catch err as RuntimeException
+		    if err.Message.InStr( "out of range" ) <> 0 then
+		      raise new OutOfBoundsException
+		    else
+		      raise err
+		    end if
+		  end try
+		  
+		End Sub
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -1073,6 +1184,19 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function Move(key As String, dbIndex As Integer) As Integer
+		  dim r as variant = MaybeSend( "", array( "MOVE", key, str( dbIndex ) ) )
+		  
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function ObjectEncoding(key As String) As String
 		  dim r as variant = MaybeSend( "", array( "OBJECT", "ENCODING", key ) )
 		  if IsPipeline or not r.IsNull then
@@ -1126,6 +1250,63 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h21
+		Private Function PopBlocking(command As String, timeoutSecs As Integer, key1 As String, moreKeys() As String) As Variant
+		  dim params() as string = array( command )
+		  if key1 <> "" then
+		    params.Append key1
+		  end if
+		  
+		  for i as integer = 0 to moreKeys.Ubound
+		    params.Append moreKeys( i )
+		  next
+		  
+		  params.Append str( timeoutSecs )
+		  
+		  dim h as new SemaphoreHolder( TimeoutSemaphore )
+		  dim oldTimeout as integer = self.TimeOutSecs
+		  self.TimeoutSecs = -1
+		  
+		  dim raisedErr as RuntimeException
+		  dim r as variant
+		  try
+		    r = MaybeSend( "", params )
+		  catch err as RuntimeException
+		    raisedErr = err
+		  end try
+		  
+		  self.TimeoutSecs = oldTimeout
+		  h = nil
+		  
+		  if raisedErr isa object then
+		    raise raisedErr
+		  end if
+		  
+		  if IsPipeline then
+		    //
+		    // Do nothing
+		    //
+		    dim arr() as string
+		    r = arr
+		    
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		    
+		  elseif r.IsArray then
+		    dim arr() as string
+		    dim varr() as variant = r
+		    redim arr( varr.Ubound )
+		    for i as integer = 0 to varr.Ubound
+		      arr( i ) = varr( i ).StringValue
+		    next
+		    r = arr
+		    
+		  end if
+		  
+		  return r
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
 		Private Sub RaiseException(code As Integer, msg As String)
 		  dim err as new RuntimeException
 		  err.ErrorNumber = code
@@ -1133,6 +1314,21 @@ Class Redis_MTC
 		  raise err
 		  
 		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function RandomKey() As String
+		  dim r as variant = MaybeSend( "RANDOMKEY", nil )
+		  
+		  if IsPipeline then
+		    return ""
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.StringValue
+		  end if
+		  
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -1151,6 +1347,50 @@ Class Redis_MTC
 		  end if
 		  
 		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function RPop(key As String) As String
+		  dim r as variant = MaybeSend( "", array( "RPOP", key ) )
+		  
+		  if IsPipeline then
+		    return ""
+		  else
+		    return r.StringValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function RPopBlocking(timeoutSecs As Integer, keys() As String) As String()
+		  return PopBlocking( "BRPOP", timeoutSecs, "", keys )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function RPopBlocking(timeoutSecs As Integer, key As String, ParamArray moreKeys() As String) As String()
+		  return PopBlocking( "BRPOP", timeoutSecs, key, moreKeys )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function RPopLPush(sourceKey As String, destKey As String) As String
+		  dim r as variant = MaybeSend( "", array( "RPOPLPUSH", sourceKey, destKey ) )
+		  
+		  if IsPipeline then
+		    return ""
+		  else
+		    return r.StringValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function RPopLPushBlocking(timeoutSecs As Integer, sourceKey As String, destKey As String) As String
+		  return PopBlocking( "BRPOPLPUSH", timeoutSecs, "", array( sourceKey, destKey ) )
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -1269,6 +1509,13 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub SelectDB(index As Integer)
+		  call MaybeSend( "", array( "SELECT", str( index ) ) )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function Set(key As String, value As String, expireMilliseconds As Integer = 0, mode As SetMode = SetMode.Always) As Boolean
 		  dim hasEx as boolean = expireMilliseconds > 0
 		  dim hasMode as boolean = mode <> SetMode.Always
@@ -1308,12 +1555,6 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Sub SetMultiple(ParamArray keyValue() As Pair)
-		  SetMultiple keyValue
-		End Sub
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
 		Sub SetMultiple(keyValue() As Pair)
 		  dim parts() as string
 		  
@@ -1325,6 +1566,18 @@ Class Redis_MTC
 		  
 		  call Execute( "MSET", parts ) // Let Execute do this work
 		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub SetMultiple(ParamArray keyValue() As Pair)
+		  SetMultiple keyValue
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SetMultipleIfNoneExist(ParamArray keyValue() As Pair) As Boolean
+		  return SetMultipleIfNoneExist( keyValue )
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -1348,12 +1601,6 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function SetMultipleIfNoneExist(ParamArray keyValue() As Pair) As Boolean
-		  return SetMultipleIfNoneExist( keyValue )
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
 		Function SetRange(key As String, startB As Integer, value As String) As Integer
 		  dim v as variant = MaybeSend( "", array( "SETRANGE", key, str( startB ), value ) )
 		  
@@ -1372,6 +1619,97 @@ Class Redis_MTC
 		  Buffer.Append data
 		  
 		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function Sort(key As String, isAscending As Boolean = True, isAlpha As Boolean = False, offset As Integer = 0, count As Integer = -1, byPattern As String = "", getPatterns() As String = Nil) As String()
+		  dim params() as string = array( "SORT", key, if( isAscending, "ASC", "DESC" ) )
+		  if isAlpha then
+		    params.Append "ALPHA"
+		  end if
+		  if offset <> 0 or count <> -1 then
+		    params.Append "LIMIT"
+		    params.Append str( offset )
+		    params.Append str( count )
+		  end if
+		  
+		  if byPattern <> "" then
+		    params.Append "BY"
+		    params.Append byPattern
+		  end if
+		  
+		  if getPatterns <> nil and getPatterns.Ubound <> -1 then
+		    for i as integer = 0 to getPatterns.Ubound
+		      params.Append "GET"
+		      params.Append getPatterns( i )
+		    next
+		  end if
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    dim arr() as string
+		    return arr
+		    
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException // Shouldn't happen
+		    
+		  else
+		    dim varr() as variant = r
+		    dim arr() as string
+		    redim arr( varr.Ubound )
+		    for i as integer = 0 to varr.Ubound
+		      arr( i ) = varr( i ).StringValue
+		    next
+		    
+		    return arr
+		    
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SortTo(destination As String, key As String, isAscending As Boolean = True, isAlpha As Boolean = False, offset As Integer = 0, count As Integer = -1, byPattern As String = "", getPatterns() As String = Nil) As Integer
+		  dim params() as string = array( "SORT", key, if( isAscending, "ASC", "DESC" ) )
+		  if isAlpha then
+		    params.Append "ALPHA"
+		  end if
+		  if offset <> 0 or count <> -1 then
+		    params.Append "LIMIT"
+		    params.Append str( offset )
+		    params.Append str( count )
+		  end if
+		  
+		  if byPattern <> "" then
+		    params.Append "BY"
+		    params.Append byPattern
+		  end if
+		  
+		  if getPatterns <> nil and getPatterns.Ubound <> -1 then
+		    for i as integer = 0 to getPatterns.Ubound
+		      params.Append "GET"
+		      params.Append getPatterns( i )
+		    next
+		  end if
+		  
+		  params.Append "STORE"
+		  params.Append destination
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return -3
+		    
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException // Shouldn't happen
+		    
+		  else
+		    return r.IntegerValue
+		    
+		  end if
+		  
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -1420,6 +1758,13 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function Touch(ParamArray keys() As String) As Integer
+		  return Touch( keys )
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function Touch(keys() As String) As Integer
 		  dim v as variant = Execute( "TOUCH", keys ) // Let Execute do the work of combining arrays
 		  
@@ -1428,13 +1773,6 @@ Class Redis_MTC
 		  else
 		    return v.IntegerValue
 		  end if
-		  
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
-		Function Touch(ParamArray keys() As String) As Integer
-		  return Touch( keys )
 		  
 		End Function
 	#tag EndMethod
@@ -1557,8 +1895,12 @@ Class Redis_MTC
 		Private Socket As TCPSocket
 	#tag EndProperty
 
-	#tag Property, Flags = &h0
+	#tag Property, Flags = &h0, Description = 30206F72206C657373206D65616E73206E6F2074696D656F7574
 		TimeoutSecs As Integer = 30
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private TimeoutSemaphore As Semaphore
 	#tag EndProperty
 
 	#tag ComputedProperty, Flags = &h0
