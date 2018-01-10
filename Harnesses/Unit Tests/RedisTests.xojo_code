@@ -368,7 +368,7 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Sub HashTest()
+		Sub HashFunctionsTest()
 		  dim r as new Redis_MTC
 		  
 		  Assert.AreEqual 1, r.HSet( "xut:hash", "field1", "value" )
