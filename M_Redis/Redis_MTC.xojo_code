@@ -486,12 +486,7 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Sub ExpireAt(key As String, target As Date)
-		  static baseDate as Date
-		  if baseDate is nil then
-		    baseDate = new Date( 1970, 1, 1 )
-		    baseDate.TotalSeconds = baseDate.TotalSeconds + ( baseDate.GMTOffset * 60.0 * 60.0 )
-		    baseDate.GMTOffset = 0
-		  end if
+		  static baseDate as Date = new Date( 1970, 1, 1, 0, 0, 0, 0 )
 		  
 		  dim unixTimestamp as Int64 = target.TotalSeconds - baseDate.TotalSeconds - ( target.GMTOffset * 60.0 * 60.0 )
 		  
@@ -1733,6 +1728,28 @@ Class Redis_MTC
 		    return v.IntegerValue
 		  end if
 		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function Time() As Date
+		  dim r as variant = MaybeSend( "TIME", nil )
+		  
+		  if IsPipeline then
+		    return nil
+		  else
+		    static gmt1970 as new Date( 1970, 1, 1, 0, 0, 0, 0 )
+		    
+		    dim arr() as variant = r
+		    dim unixSecs as double = arr( 0 ).DoubleValue
+		    dim d as new Date
+		    dim currOffset as double = d.GMTOffset
+		    d.GMTOffset = 0.0
+		    d.TotalSeconds = unixSecs + gmt1970.TotalSeconds
+		    d.GMTOffset = currOffset
+		    
+		    return d
+		  end if
 		End Function
 	#tag EndMethod
 

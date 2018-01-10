@@ -279,7 +279,7 @@ Inherits TestGroup
 		    r.ExpireAt "xut:key1", d
 		    Assert.Fail "Key should have expired"
 		  catch err as KeyNotFoundException
-		    Assert.Pass "Unknown key"
+		    Assert.Pass 
 		  end try
 		  #pragma BreakOnExceptions default
 		  
@@ -1059,6 +1059,16 @@ Inherits TestGroup
 		  while Microseconds <= targetMs
 		    Assert.IsTrue r.Set( "xut:threadtestkey", "value" ), "Thread"
 		  wend
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub TimeTest()
+		  dim r as new Redis_MTC
+		  dim d as Date = r.Time
+		  dim now as new Date
+		  Assert.AreEqual now.SQLDateTime, d.SQLDateTime
 		  
 		End Sub
 	#tag EndMethod
