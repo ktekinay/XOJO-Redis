@@ -2124,8 +2124,14 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h21
 		Private Sub Socket_DataAvailable(sender As TCPSocket)
+		  dim oldUb as integer = Buffer.Ubound
+		  
 		  dim data as string = sender.ReadAll( Encodings.UTF8 )
 		  Buffer.Append data
+		  
+		  if IsPipeline and oldUb = -1 then
+		    RaiseEvent ResponseInPipeline
+		  end if
 		  
 		End Sub
 	#tag EndMethod
@@ -2494,6 +2500,11 @@ Class Redis_MTC
 	#tag EndMethod
 
 
+	#tag Hook, Flags = &h0
+		Event ResponseInPipeline()
+	#tag EndHook
+
+
 	#tag Property, Flags = &h21
 		Private Buffer() As String
 	#tag EndProperty
@@ -2586,6 +2597,16 @@ Class Redis_MTC
 	#tag Property, Flags = &h21
 		Private RequestCount As Integer
 	#tag EndProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  return Results.Ubound + 1
+			  
+			End Get
+		#tag EndGetter
+		ResultCount As Integer
+	#tag EndComputedProperty
 
 	#tag Property, Flags = &h21
 		Private Results() As Variant
@@ -2744,6 +2765,11 @@ Class Redis_MTC
 			Visible=true
 			Group="ID"
 			Type="String"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="ResultCount"
+			Group="Behavior"
+			Type="Integer"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Super"
