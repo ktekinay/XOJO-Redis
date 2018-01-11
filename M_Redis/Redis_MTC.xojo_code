@@ -233,7 +233,7 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Sub Connect(pw As String = "", host As String = kDefaultHost, port As Integer = kDefaultPort)
+		Sub Connect(pw As String="", address As String=kDefaultAddress, port As Integer=kDefaultPort)
 		  Socket.Connect
 		  dim startMs as double = Microseconds
 		  do
@@ -241,7 +241,7 @@ Class Redis_MTC
 		  loop until Socket.IsConnected or ( Microseconds - startMs ) > 500000
 		  
 		  if not Socket.IsConnected then
-		    RaiseException 0, "Could not connect to host """ + host + " on port " + str(port)
+		    RaiseException 0, "Could not connect to address """ + address + " on port " + str(port)
 		  end if
 		  
 		  if pw <> "" then
@@ -251,7 +251,7 @@ Class Redis_MTC
 		  dim serverInfo as Dictionary = Info( kSectionServer )
 		  
 		  if serverInfo is nil then
-		    RaiseException 0, "Could not get a response from host """ + host + " on port " + str(port)
+		    RaiseException 0, "Could not get a response from address """ + address + " on port " + str(port)
 		  end if
 		  
 		  dim version as string = serverInfo.Lookup( "redis_version", "" )
@@ -273,9 +273,9 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Sub Constructor(pw As String = "", host As String = kDefaultHost, port As Integer = kDefaultPort)
-		  if host = "" then
-		    host = kDefaultHost
+		Sub Constructor(pw As String="", address As String = kDefaultAddress, port As Integer = kDefaultPort)
+		  if address = "" then
+		    address = kDefaultAddress
 		  end if
 		  if port <= 0 then
 		    port = kDefaultPort
@@ -285,7 +285,7 @@ Class Redis_MTC
 		  TimeoutSemaphore = new Semaphore( 1 )
 		  
 		  Socket = new TCPSocket
-		  Socket.Address = host
+		  Socket.Address = address
 		  Socket.Port = port
 		  AddHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
 		  
@@ -294,7 +294,7 @@ Class Redis_MTC
 		  PipelineCheckTimer.Period = 20
 		  PipelineCheckTimer.Mode = Timer.ModeOff
 		  
-		  Connect pw, host, port
+		  Connect pw, address, port
 		End Sub
 	#tag EndMethod
 
@@ -2766,7 +2766,7 @@ Class Redis_MTC
 	#tag Constant, Name = kConfigRequirePass, Type = String, Dynamic = False, Default = \"requirepass", Scope = Public
 	#tag EndConstant
 
-	#tag Constant, Name = kDefaultHost, Type = String, Dynamic = False, Default = \"localhost", Scope = Public
+	#tag Constant, Name = kDefaultAddress, Type = String, Dynamic = False, Default = \"localhost", Scope = Public
 	#tag EndConstant
 
 	#tag Constant, Name = kDefaultPort, Type = Double, Dynamic = False, Default = \"6379", Scope = Public
