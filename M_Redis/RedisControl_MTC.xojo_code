@@ -40,13 +40,29 @@ Inherits M_Redis.Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h21
+		Private Sub Destructor()
+		  TeardownOpenTimer
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
 		Private Sub OpenTimer_Action(sender As Timer)
 		  #pragma unused sender
 		  
 		  RaiseEvent Opened
 		  
-		  RemoveHandler OpenTimer.Action, WeakAddressOf OpenTimer_Action
-		  OpenTimer = nil
+		  TeardownOpenTimer
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub TeardownOpenTimer()
+		  if OpenTimer isa object then
+		    OpenTimer.Mode = Timer.ModeOff
+		    RemoveHandler OpenTimer.Action, WeakAddressOf OpenTimer_Action
+		    OpenTimer = nil
+		  end if
 		  
 		End Sub
 	#tag EndMethod
