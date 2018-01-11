@@ -268,25 +268,23 @@ Class Redis_MTC
 		    Auth pw
 		  end if
 		  
-		  dim serverInfo as string = Info( kSectionServer )
+		  dim serverInfo as Dictionary = Info( kSectionServer )
 		  
-		  if serverInfo = "" then
+		  if serverInfo is nil then
 		    RaiseException 0, "Could not get a response from host """ + host + " on port " + str(port)
 		  end if
 		  
-		  dim rxVersion as new RegEx
-		  rxVersion.SearchPattern = "^redis_version:(.*)"
-		  dim match as RegExMatch = rxVersion.Search( serverInfo )
-		  if match isa RegExMatch then
-		    zVersion = match.SubExpressionString( 1 )
-		    dim parts() as string = Version.Split( "." )
+		  dim version as string = serverInfo.Lookup( "redis_version", "" )
+		  if version <> "" then
+		    zRedisVersion = version
+		    dim parts() as string = version.Split( "." )
 		    if parts.Ubound < 2 then
 		      redim parts( 2 )
 		    end if
 		    
-		    MajorVersion = parts( 0 ).Val
-		    MinorVersion = parts( 1 ).Val
-		    BugVersion = parts( 2 ).Val
+		    RedisMajorVersion = parts( 0 ).Val
+		    RedisMinorVersion = parts( 1 ).Val
+		    RedisBugVersion = parts( 2 ).Val
 		  end if
 		  
 		  InitCommandDelete
@@ -376,10 +374,15 @@ Class Redis_MTC
 		End Function
 	#tag EndMethod
 
-	#tag Method, Flags = &h21
-		Private Sub Destructor()
+	#tag Method, Flags = &h0
+		Sub Destructor()
 		  if Socket isa object then
-		    Socket.Close
+		    if Socket.IsConnected then
+		      call MaybeSend( "QUIT", nil )
+		      Socket.Flush
+		      Socket.Close
+		    end if
+		    
 		    RemoveHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
 		    Socket = nil
 		  end if
@@ -513,7 +516,7 @@ Class Redis_MTC
 	#tag Method, Flags = &h0
 		Sub FlushAll()
 		  if CommandFlushAll = "" then
-		    CommandFlushAll = "FLUSHALL" + if( MajorVersion >= 4, " ASYNC", "" )
+		    CommandFlushAll = "FLUSHALL" + if( RedisMajorVersion >= 4, " ASYNC", "" )
 		  end if
 		  call MaybeSend( CommandFlushAll, nil )
 		  
@@ -523,7 +526,7 @@ Class Redis_MTC
 	#tag Method, Flags = &h0
 		Sub FlushDB()
 		  if CommandFlushDB = "" then
-		    CommandFlushDB = "FLUSHDB" + if( MajorVersion >= 4, " ASYNC", "" )
+		    CommandFlushDB = "FLUSHDB" + if( RedisMajorVersion >= 4, " ASYNC", "" )
 		  end if
 		  call MaybeSend( CommandFlushDB, nil )
 		  
@@ -626,11 +629,7 @@ Class Redis_MTC
 		  // 0 or less means indefinite
 		  //
 		  do
-		    if Buffer.Ubound <> -1 then
-		      dim pos as integer
-		      Results = InterpretResponse( join( Buffer, "" ), pos )
-		      redim Buffer( -1 )
-		    end if
+		    ProcessBuffer
 		    if ( Results.Ubound + 1 ) = RequestCount then
 		      timedOut = false
 		      exit do
@@ -1011,18 +1010,18 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function Info(section As String = "") As String
-		  dim v as variant
+		Function Info(section As String = "") As Dictionary
+		  dim r as variant
 		  if section = "" then
-		    v = MaybeSend( "INFO", nil )
+		    r = MaybeSend( "INFO", nil )
 		  else
-		    v = MaybeSend( "", array( "INFO", section ) )
+		    r = MaybeSend( "", array( "INFO", section ) )
 		  end if
 		  
 		  if IsPipeline then
-		    return ""
+		    return nil
 		  else
-		    return v.StringValue
+		    return InfoStringToDictionary( r.StringValue )
 		  end if
 		  
 		End Function
@@ -1031,7 +1030,7 @@ Class Redis_MTC
 	#tag Method, Flags = &h21
 		Private Sub InitCommandDelete()
 		  if CommandDelete = "" then
-		    if MajorVersion >= 4 then
+		    if RedisMajorVersion >= 4 then
 		      CommandDelete = "UNLINK"
 		    else
 		      CommandDelete = "DEL"
@@ -1550,19 +1549,18 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h21
 		Private Sub PipelineCheckTimer_Action(sender As Timer)
-		  dim requests as integer = RequestCount
-		  
-		  if not IsPipeline then
+		  if not IsPipeline or Socket is nil then
 		    sender.Mode = Timer.ModeOff
-		    
-		  elseif ResultCount < requests then
-		    Results = FlushPipeline( true )
-		    RequestCount = requests // Restore this
-		    
-		    if ResultCount = requests then
-		      RaiseEvent ResponseInPipeline
-		    end if
-		    
+		    return
+		  end if
+		  
+		  if ResultCount < RequestCount then
+		    Socket.Poll
+		  end if
+		  
+		  if Buffer.Ubound <> -1 then
+		    ProcessBuffer
+		    RaiseEvent ResponseInPipeline
 		  end if
 		  
 		End Sub
@@ -1626,6 +1624,19 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h21
+		Private Sub ProcessBuffer()
+		  if Buffer.Ubound <> -1 then
+		    dim s as string = join( Buffer, "" )
+		    redim Buffer( -1 )
+		    
+		    dim pos as integer = 1
+		    Results = InterpretResponse( s, pos )
+		  end if
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
 		Private Sub RaiseException(code As Integer, msg As String)
 		  dim err as new RuntimeException
 		  err.ErrorNumber = code
@@ -1646,6 +1657,34 @@ Class Redis_MTC
 		  else
 		    return r.StringValue
 		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ReadPipeline() As Variant()
+		  //
+		  // Returns the current results
+		  //
+		  
+		  if not IsPipeline then
+		    RaiseException 0, "No pipelines are active"
+		  end if
+		  
+		  ProcessBuffer
+		  
+		  dim r() as variant
+		  
+		  if Results.Ubound <> -1 then
+		    dim h as new SemaphoreHolder( CommandSemaphore )
+		    r = Results
+		    dim newResults() as variant
+		    Results = newResults
+		    RequestCount = RequestCount - ( r.Ubound + 1 )
+		    h = nil
+		  end if
+		  
+		  return r
 		  
 		End Function
 	#tag EndMethod
@@ -2545,10 +2584,6 @@ Class Redis_MTC
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
-		Private BugVersion As Integer
-	#tag EndProperty
-
-	#tag Property, Flags = &h21
 		Private CommandDelete As String
 	#tag EndProperty
 
@@ -2573,6 +2608,20 @@ Class Redis_MTC
 			End Get
 		#tag EndGetter
 		Private Shared EOL As String
+	#tag EndComputedProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  if Socket is nil then
+			    return false
+			  else
+			    return Socket.IsConnected
+			  end if
+			  
+			End Get
+		#tag EndGetter
+		IsConnected As Boolean
 	#tag EndComputedProperty
 
 	#tag Property, Flags = &h21
@@ -2614,14 +2663,6 @@ Class Redis_MTC
 	#tag EndComputedProperty
 
 	#tag Property, Flags = &h21
-		Private MajorVersion As Integer
-	#tag EndProperty
-
-	#tag Property, Flags = &h21
-		Private MinorVersion As Integer
-	#tag EndProperty
-
-	#tag Property, Flags = &h21
 		Private PipelineCheckTimer As Timer
 	#tag EndProperty
 
@@ -2634,17 +2675,39 @@ Class Redis_MTC
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
+		Private RedisBugVersion As Integer
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private RedisMajorVersion As Integer
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private RedisMinorVersion As Integer
+	#tag EndProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  return zRedisVersion
+			  
+			End Get
+		#tag EndGetter
+		RedisVersion As String
+	#tag EndComputedProperty
+
+	#tag Property, Flags = &h21
 		Private RequestCount As Integer
 	#tag EndProperty
 
-	#tag ComputedProperty, Flags = &h21
+	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
 			  return Results.Ubound + 1
 			  
 			End Get
 		#tag EndGetter
-		Private ResultCount As Integer
+		ResultCount As Integer
 	#tag EndComputedProperty
 
 	#tag Property, Flags = &h21
@@ -2663,22 +2726,12 @@ Class Redis_MTC
 		Private TimeoutSemaphore As Semaphore
 	#tag EndProperty
 
-	#tag ComputedProperty, Flags = &h0
-		#tag Getter
-			Get
-			  return zVersion
-			  
-			End Get
-		#tag EndGetter
-		Version As String
-	#tag EndComputedProperty
-
 	#tag Property, Flags = &h21
 		Attributes( hidden ) Private zLastCommand As String
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
-		Attributes( hidden ) Private zVersion As String
+		Attributes( hidden ) Private zRedisVersion As String
 	#tag EndProperty
 
 
@@ -2806,6 +2859,12 @@ Class Redis_MTC
 			Type="String"
 		#tag EndViewProperty
 		#tag ViewProperty
+			Name="RedisVersion"
+			Group="Behavior"
+			Type="String"
+			EditorType="MultiLineEditor"
+		#tag EndViewProperty
+		#tag ViewProperty
 			Name="ResultCount"
 			Group="Behavior"
 			Type="Integer"
@@ -2828,12 +2887,6 @@ Class Redis_MTC
 			Group="Position"
 			InitialValue="0"
 			Type="Integer"
-		#tag EndViewProperty
-		#tag ViewProperty
-			Name="Version"
-			Group="Behavior"
-			Type="String"
-			EditorType="MultiLineEditor"
 		#tag EndViewProperty
 	#tag EndViewBehavior
 End Class

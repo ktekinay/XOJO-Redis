@@ -477,6 +477,28 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub InfoTest()
+		  dim r as new Redis_MTC
+		  
+		  dim memory as Dictionary = r.Info( Redis_MTC.kSectionMemory )
+		  Assert.IsTrue memory.Count <> 0
+		  Assert.IsTrue memory.HasKey( "used_memory" )
+		  Assert.IsTrue memory.Value( "used_memory" ).Type = Variant.TypeString
+		  
+		  dim all as Dictionary = r.Info
+		  Assert.IsTrue all.HasKey( "server" )
+		  Assert.IsTrue all.HasKey( "memory" )
+		  Assert.IsTrue all.Value( "memory" ) isa Dictionary
+		  
+		  dim server as Dictionary = all.Value( "server" )
+		  Assert.IsTrue server.Count <> 0
+		  Assert.IsTrue server.HasKey( "redis_version" )
+		  Assert.IsTrue server.Value( "redis_version" ).Type = Variant.TypeString
+		  Assert.IsTrue server.Value( "redis_version" ).StringValue <> ""
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub KeysTest()
 		  dim r as new Redis_MTC
 		  
@@ -807,13 +829,17 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h21
 		Private Sub Redis_ResponseInPipeline(sender As Redis_MTC)
-		  AsyncComplete
+		  const kExpected = 100000
 		  
-		  dim results() as variant = sender.FlushPipeline( false )
-		  
-		  Assert.AreEqual 99, CType( results.Ubound, integer )
-		  
-		  RemoveHandler sender.ResponseInPipeline, WeakAddressOf Redis_ResponseInPipeline
+		  if sender.ResultCount = kExpected then
+		    AsyncComplete
+		    dim results() as variant = sender.ReadPipeline
+		    Assert.AreEqual kExpected - 1, CType( results.Ubound, integer )
+		    
+		    RemoveHandler sender.ResponseInPipeline, WeakAddressOf Redis_ResponseInPipeline
+		  else
+		    Assert.Message "Insufficient results, waiting"
+		  end if
 		End Sub
 	#tag EndMethod
 
@@ -851,7 +877,7 @@ Inherits TestGroup
 		  AddHandler r.ResponseInPipeline, WeakAddressOf Redis_ResponseInPipeline
 		  
 		  r.StartPipeline( 10 )
-		  for i as integer = 0 to 99
+		  for i as integer = 0 to 99999
 		    Assert.IsTrue r.Set( "xut:key", "xxx" )
 		  next
 		  
