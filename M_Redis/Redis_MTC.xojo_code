@@ -233,27 +233,7 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Sub Constructor(pw As String = "", host As String = kDefaultHost, port As Integer = kDefaultPort)
-		  if host = "" then
-		    host = kDefaultHost
-		  end if
-		  if port <= 0 then
-		    port = kDefaultPort
-		  end if
-		  
-		  CommandSemaphore = new Semaphore( 1 )
-		  TimeoutSemaphore = new Semaphore( 1 )
-		  
-		  Socket = new TCPSocket
-		  Socket.Address = host
-		  Socket.Port = port
-		  AddHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
-		  
-		  PipelineCheckTimer = new Timer
-		  AddHandler PipelineCheckTimer.Action, WeakAddressOf PipelineCheckTimer_Action
-		  PipelineCheckTimer.Period = 20
-		  PipelineCheckTimer.Mode = Timer.ModeOff
-		  
+		Sub Connect(pw As String = "", host As String = kDefaultHost, port As Integer = kDefaultPort)
 		  Socket.Connect
 		  dim startMs as double = Microseconds
 		  do
@@ -289,6 +269,32 @@ Class Redis_MTC
 		  
 		  InitCommandDelete
 		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub Constructor(pw As String = "", host As String = kDefaultHost, port As Integer = kDefaultPort)
+		  if host = "" then
+		    host = kDefaultHost
+		  end if
+		  if port <= 0 then
+		    port = kDefaultPort
+		  end if
+		  
+		  CommandSemaphore = new Semaphore( 1 )
+		  TimeoutSemaphore = new Semaphore( 1 )
+		  
+		  Socket = new TCPSocket
+		  Socket.Address = host
+		  Socket.Port = port
+		  AddHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
+		  
+		  PipelineCheckTimer = new Timer
+		  AddHandler PipelineCheckTimer.Action, WeakAddressOf PipelineCheckTimer_Action
+		  PipelineCheckTimer.Period = 20
+		  PipelineCheckTimer.Mode = Timer.ModeOff
+		  
+		  Connect pw, host, port
 		End Sub
 	#tag EndMethod
 
@@ -374,19 +380,10 @@ Class Redis_MTC
 		End Function
 	#tag EndMethod
 
-	#tag Method, Flags = &h0
-		Sub Destructor()
+	#tag Method, Flags = &h21
+		Private Sub Destructor()
 		  if Socket isa object then
-		    if Socket.IsConnected then
-		      if IsPipeline then
-		        call FlushPipeline( false )
-		      end if
-		      
-		      call MaybeSend( "QUIT", nil )
-		      
-		      Socket.Close
-		    end if
-		    
+		    Disconnect
 		    RemoveHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
 		    Socket = nil
 		  end if
@@ -395,6 +392,21 @@ Class Redis_MTC
 		    PipelineCheckTimer.Mode = Timer.ModeOff
 		    RemoveHandler PipelineCheckTimer.Action, WeakAddressOf PipelineCheckTimer_Action
 		    PipelineCheckTimer = nil
+		  end if
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub Disconnect()
+		  if Socket.IsConnected then
+		    if IsPipeline then
+		      call FlushPipeline( false )
+		    end if
+		    
+		    call MaybeSend( "QUIT", nil )
+		    
+		    Socket.Close
 		  end if
 		  
 		End Sub
@@ -410,12 +422,6 @@ Class Redis_MTC
 		    return r.StringValue
 		  end if
 		  
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
-		Function Execute(command As String, ParamArray parameters() As String) As Variant
-		  return Execute( command, parameters )
 		End Function
 	#tag EndMethod
 
@@ -459,6 +465,12 @@ Class Redis_MTC
 		    return MaybeSend( "", commandParts )
 		    
 		  end if
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function Execute(command As String, ParamArray parameters() As String) As Variant
+		  return Execute( command, parameters )
 		End Function
 	#tag EndMethod
 
@@ -553,6 +565,19 @@ Class Redis_MTC
 		End Function
 	#tag EndMethod
 
+	#tag Method, Flags = &h21
+		Private Sub ForcePipeline()
+		  if IsPipeline and PipelineQueue.Ubound <> -1 then
+		    dim cmd as string = join( PipelineQueue, EOL )
+		    redim PipelineQueue( -1 )
+		    
+		    Socket.Write cmd + eol
+		    Socket.Flush
+		  end if
+		  
+		End Sub
+	#tag EndMethod
+
 	#tag Method, Flags = &h0
 		Function Get(key As String) As String
 		  dim v as variant = MaybeSend( "", array( "GET", key ) )
@@ -585,6 +610,12 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function GetMultiple(ParamArray keys() As String) As Variant()
+		  return GetMultiple( keys )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function GetMultiple(keys() As String) As Variant()
 		  dim r as variant = Execute( "MGET", keys ) // Let Execute do this work
 		  if r.IsArray then
@@ -595,12 +626,6 @@ Class Redis_MTC
 		    return arr
 		  end if
 		  
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
-		Function GetMultiple(ParamArray keys() As String) As Variant()
-		  return GetMultiple( keys )
 		End Function
 	#tag EndMethod
 
@@ -1033,12 +1058,10 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h21
 		Private Sub InitCommandDelete()
-		  if CommandDelete = "" then
-		    if RedisMajorVersion >= 4 then
-		      CommandDelete = "UNLINK"
-		    else
-		      CommandDelete = "DEL"
-		    end if
+		  if RedisMajorVersion >= 4 then
+		    CommandDelete = "UNLINK"
+		  else
+		    CommandDelete = "DEL"
 		  end if
 		  
 		End Sub
@@ -1559,6 +1582,7 @@ Class Redis_MTC
 		  end if
 		  
 		  if ResultCount < RequestCount then
+		    ForcePipeline
 		    Socket.Poll
 		  end if
 		  
@@ -2077,6 +2101,12 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function SetMultipleIfNoneExist(ParamArray keyValue() As Pair) As Boolean
+		  return SetMultipleIfNoneExist( keyValue )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function SetMultipleIfNoneExist(keyValue() As Pair) As Boolean
 		  dim parts() as string
 		  
@@ -2093,12 +2123,6 @@ Class Redis_MTC
 		  else
 		    return v.IntegerValue <> 0
 		  end if
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
-		Function SetMultipleIfNoneExist(ParamArray keyValue() As Pair) As Boolean
-		  return SetMultipleIfNoneExist( keyValue )
 		End Function
 	#tag EndMethod
 

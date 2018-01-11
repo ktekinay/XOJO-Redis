@@ -311,6 +311,39 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub FinishPipelineTest()
+		  dim r as new Redis_MTC
+		  r.StartPipeline 100
+		  
+		  for i as integer = 1 to 9
+		    call r.Set( "xut:key" + str( i ), "value" )
+		  next
+		  
+		  r = nil
+		  
+		  r = new Redis_MTC
+		  dim keys() as string = r.Scan( "xut:*" )
+		  Assert.AreEqual 8, CType( keys.Ubound, integer )
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
+		  
+		  r.StartPipeline 100
+		  
+		  for i as integer = 1 to 9
+		    call r.Set( "xut:key" + str( i ), "value" )
+		  next
+		  
+		  r.Disconnect
+		  
+		  r.Connect
+		  
+		  keys = r.Scan( "xut:*" )
+		  Assert.AreEqual 8, CType( keys.Ubound, integer )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub FlushAllTest()
 		  //
 		  // A dangerous test that we do not perform unless needed
@@ -876,7 +909,7 @@ Inherits TestGroup
 		  Redis = r
 		  AddHandler r.ResponseInPipeline, WeakAddressOf Redis_ResponseInPipeline
 		  
-		  r.StartPipeline( 10 )
+		  r.StartPipeline( 11 )
 		  for i as integer = 0 to 99999
 		    Assert.IsTrue r.Set( "xut:key", "xxx" )
 		  next
