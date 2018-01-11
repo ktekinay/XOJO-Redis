@@ -378,8 +378,12 @@ Class Redis_MTC
 		Sub Destructor()
 		  if Socket isa object then
 		    if Socket.IsConnected then
+		      if IsPipeline then
+		        call FlushPipeline( false )
+		      end if
+		      
 		      call MaybeSend( "QUIT", nil )
-		      Socket.Flush
+		      
 		      Socket.Close
 		    end if
 		    
