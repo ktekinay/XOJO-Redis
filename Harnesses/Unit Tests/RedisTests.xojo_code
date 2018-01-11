@@ -335,7 +335,7 @@ Inherits TestGroup
 		  
 		  r.Disconnect
 		  
-		  r.Connect
+		  call r.Connect
 		  
 		  keys = r.Scan( "xut:*" )
 		  Assert.AreEqual 8, CType( keys.Ubound, integer )

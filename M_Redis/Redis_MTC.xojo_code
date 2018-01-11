@@ -233,15 +233,25 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Sub Connect(pw As String="", address As String=kDefaultAddress, port As Integer=kDefaultPort)
+		Function Connect(pw As String="") As Boolean
+		  IsDisconnecting = false
+		  
+		  if Socket.IsConnected then
+		    if pw <> "" then
+		      Auth pw
+		    end if
+		    return true
+		  end if
+		  
 		  Socket.Connect
+		  
 		  dim startMs as double = Microseconds
 		  do
 		    Socket.Poll
 		  loop until Socket.IsConnected or ( Microseconds - startMs ) > 500000
 		  
 		  if not Socket.IsConnected then
-		    RaiseException 0, "Could not connect to address """ + address + " on port " + str(port)
+		    return false
 		  end if
 		  
 		  if pw <> "" then
@@ -251,7 +261,7 @@ Class Redis_MTC
 		  dim serverInfo as Dictionary = Info( kSectionServer )
 		  
 		  if serverInfo is nil then
-		    RaiseException 0, "Could not get a response from address """ + address + " on port " + str(port)
+		    return false
 		  end if
 		  
 		  dim version as string = serverInfo.Lookup( "redis_version", "" )
@@ -269,32 +279,21 @@ Class Redis_MTC
 		  
 		  InitCommandDelete
 		  
-		End Sub
+		  return true
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Sub Constructor(pw As String="", address As String = kDefaultAddress, port As Integer = kDefaultPort)
-		  if address = "" then
-		    address = kDefaultAddress
+		  Initialize
+		  
+		  self.Address = address
+		  self.Port = port
+		  
+		  if not Connect( pw ) then
+		    RaiseException 0, "Could not connect to Redis at address " + self.Address + " on port " + str( self.Port )
 		  end if
-		  if port <= 0 then
-		    port = kDefaultPort
-		  end if
 		  
-		  CommandSemaphore = new Semaphore( 1 )
-		  TimeoutSemaphore = new Semaphore( 1 )
-		  
-		  Socket = new TCPSocket
-		  Socket.Address = address
-		  Socket.Port = port
-		  AddHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
-		  
-		  PipelineCheckTimer = new Timer
-		  AddHandler PipelineCheckTimer.Action, WeakAddressOf PipelineCheckTimer_Action
-		  PipelineCheckTimer.Period = 20
-		  PipelineCheckTimer.Mode = Timer.ModeOff
-		  
-		  Connect pw, address, port
 		End Sub
 	#tag EndMethod
 
@@ -385,6 +384,7 @@ Class Redis_MTC
 		  if Socket isa object then
 		    Disconnect
 		    RemoveHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
+		    RemoveHandler Socket.Error, WeakAddressOf Socket_Error
 		    Socket = nil
 		  end if
 		  
@@ -406,7 +406,8 @@ Class Redis_MTC
 		    
 		    call MaybeSend( "QUIT", nil )
 		    
-		    Socket.Close
+		    IsDisconnecting = true
+		    Socket.Disconnect
 		  end if
 		  
 		End Sub
@@ -422,6 +423,12 @@ Class Redis_MTC
 		    return r.StringValue
 		  end if
 		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function Execute(command As String, ParamArray parameters() As String) As Variant
+		  return Execute( command, parameters )
 		End Function
 	#tag EndMethod
 
@@ -465,12 +472,6 @@ Class Redis_MTC
 		    return MaybeSend( "", commandParts )
 		    
 		  end if
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
-		Function Execute(command As String, ParamArray parameters() As String) As Variant
-		  return Execute( command, parameters )
 		End Function
 	#tag EndMethod
 
@@ -1062,6 +1063,27 @@ Class Redis_MTC
 		    CommandDelete = "UNLINK"
 		  else
 		    CommandDelete = "DEL"
+		  end if
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h1
+		Protected Sub Initialize()
+		  if Socket is nil then
+		    CommandSemaphore = new Semaphore( 1 )
+		    TimeoutSemaphore = new Semaphore( 1 )
+		    
+		    Socket = new TCPSocket
+		    Socket.Address = kDefaultAddress
+		    Socket.Port = kDefaultPort
+		    AddHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
+		    AddHandler Socket.Error, WeakAddressOf Socket_Error
+		    
+		    PipelineCheckTimer = new Timer
+		    AddHandler PipelineCheckTimer.Action, WeakAddressOf PipelineCheckTimer_Action
+		    PipelineCheckTimer.Period = 20
+		    PipelineCheckTimer.Mode = Timer.ModeOff
 		  end if
 		  
 		End Sub
@@ -2101,12 +2123,6 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function SetMultipleIfNoneExist(ParamArray keyValue() As Pair) As Boolean
-		  return SetMultipleIfNoneExist( keyValue )
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
 		Function SetMultipleIfNoneExist(keyValue() As Pair) As Boolean
 		  dim parts() as string
 		  
@@ -2123,6 +2139,12 @@ Class Redis_MTC
 		  else
 		    return v.IntegerValue <> 0
 		  end if
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function SetMultipleIfNoneExist(ParamArray keyValue() As Pair) As Boolean
+		  return SetMultipleIfNoneExist( keyValue )
 		End Function
 	#tag EndMethod
 
@@ -2226,6 +2248,22 @@ Class Redis_MTC
 		Private Sub Socket_DataAvailable(sender As TCPSocket)
 		  dim data as string = sender.ReadAll( Encodings.UTF8 )
 		  Buffer.Append data
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub Socket_Error(sender As TCPSocket)
+		  if sender.LastErrorCode = 102 and IsDisconnecting then
+		    IsDisconnecting = false
+		    RaiseEvent Disconnected
+		  else
+		    IsDisconnecting = false
+		    
+		    if not RaiseEvent SocketError( sender.LastErrorCode ) then
+		      RaiseException sender.LastErrorCode, "Unexpectedly disconnected"
+		    end if
+		  end if
 		  
 		End Sub
 	#tag EndMethod
@@ -2603,9 +2641,46 @@ Class Redis_MTC
 
 
 	#tag Hook, Flags = &h0
+		Event Disconnected()
+	#tag EndHook
+
+	#tag Hook, Flags = &h0, Description = 526169736564207768656E207573696E67206120506970656C696E6520616674657220736F6D65206F7220616C6C20646174612068617320617272697665642E205573652052656164506970656C696E6520746F20676574207468652063757272656E7420726573756C74732E204966206E6F7420636F6D706C6574652C2074686973206576656E742077696C6C2062652072616973656420616761696E207768656E206D6F7265206461746120617272697665732E2055736520466C757368506970656C696E6520746F207761697420666F7220616C6C2074686520726573756C7473206E6F772E
 		Event ResponseInPipeline()
 	#tag EndHook
 
+	#tag Hook, Flags = &h0, Description = 416E20756E65706563746564206572726F7220686173206F6363757272656420696E2074686520544350536F636B65742E20416E20657863657074696F6E2077696C6C2062652072616973656420756E6C6573732074686973206576656E742072657475726E7320547275652E
+		Event SocketError(code As Integer) As Boolean
+	#tag EndHook
+
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  if Socket is nil then
+			    return ""
+			  else
+			    return Socket.Address
+			  end if
+			  
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  if Socket is nil then
+			    //
+			    // Do nothing
+			    //
+			    return
+			    
+			  else
+			    Socket.Address = value
+			    
+			  end if
+			  
+			End Set
+		#tag EndSetter
+		Address As String
+	#tag EndComputedProperty
 
 	#tag Property, Flags = &h21
 		Private Buffer() As String
@@ -2651,6 +2726,10 @@ Class Redis_MTC
 		#tag EndGetter
 		IsConnected As Boolean
 	#tag EndComputedProperty
+
+	#tag Property, Flags = &h21
+		Private IsDisconnecting As Boolean
+	#tag EndProperty
 
 	#tag Property, Flags = &h21
 		Private IsFlushingPipeline As Boolean
@@ -2701,6 +2780,37 @@ Class Redis_MTC
 	#tag Property, Flags = &h21
 		Private PipelineQueue() As String
 	#tag EndProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  if Socket is nil then
+			    return -1
+			    
+			  else
+			    return Socket.Port
+			    
+			  end if
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  if Socket is nil then
+			    //
+			    // Do nothing
+			    //
+			    return
+			    
+			  elseif value <= 0 then
+			    value = kDefaultPort
+			  end if
+			  
+			  Socket.Port = value
+			  
+			End Set
+		#tag EndSetter
+		Port As Integer
+	#tag EndComputedProperty
 
 	#tag Property, Flags = &h21
 		Private RedisBugVersion As Integer
@@ -2851,11 +2961,22 @@ Class Redis_MTC
 
 	#tag ViewBehavior
 		#tag ViewProperty
+			Name="Address"
+			Group="Behavior"
+			Type="String"
+			EditorType="MultiLineEditor"
+		#tag EndViewProperty
+		#tag ViewProperty
 			Name="Index"
 			Visible=true
 			Group="ID"
 			InitialValue="-2147483648"
 			Type="Integer"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="IsConnected"
+			Group="Behavior"
+			Type="Boolean"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="IsPipeline"
@@ -2885,6 +3006,11 @@ Class Redis_MTC
 			Visible=true
 			Group="ID"
 			Type="String"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="Port"
+			Group="Behavior"
+			Type="Integer"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="RedisVersion"
