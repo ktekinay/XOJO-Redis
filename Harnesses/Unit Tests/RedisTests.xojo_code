@@ -860,6 +860,19 @@ Inherits TestGroup
 		End Sub
 	#tag EndMethod
 
+	#tag Method, Flags = &h0
+		Sub RedisControlTest()
+		  dim r as new RedisControl_MTC
+		  Assert.IsFalse r.IsConnected
+		  Assert.IsTrue r.Connect
+		  Assert.IsTrue r.Set( "xut:key", "value", 1 )
+		  
+		  r = new RedisControl_MTC
+		  r.Address = ""
+		  Assert.IsFalse r.Connect
+		End Sub
+	#tag EndMethod
+
 	#tag Method, Flags = &h21
 		Private Sub Redis_ResponseInPipeline(sender As Redis_MTC)
 		  const kExpected = 100000

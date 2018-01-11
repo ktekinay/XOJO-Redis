@@ -75,6 +75,20 @@ Protected Module M_Redis
 	#tag EndMethod
 
 
+	#tag Note, Name = About Redis_MTC vs. RedisControl_MTC
+		Redis_MTC is the main class and should be used in most cases. It will
+		automatically connect on instantiation and raise an Exception if it can't.
+		
+		RedisControl_MTC is for use on windows and has additional events for that purpose.
+		It will not automatically connect and will let you handle a TCPSocket error 
+		gracefully without raising an exception.
+		
+		RedisControl_MTC can be used in code directly too if you prefer not to
+		automatically connect.
+		
+	#tag EndNote
+
+
 	#tag ViewBehavior
 		#tag ViewProperty
 			Name="Index"
