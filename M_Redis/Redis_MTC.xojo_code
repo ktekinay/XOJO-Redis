@@ -243,7 +243,9 @@ Class Redis_MTC
 		    return true
 		  end if
 		  
+		  IsConnecting = true
 		  Socket.Connect
+		  IsConnecting = false
 		  
 		  dim startMs as double = Microseconds
 		  do
@@ -407,6 +409,7 @@ Class Redis_MTC
 		    call MaybeSend( "QUIT", nil )
 		    
 		    IsDisconnecting = true
+		    IsConnecting = false
 		    Socket.Disconnect
 		  end if
 		  
@@ -2254,14 +2257,58 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h21
 		Private Sub Socket_Error(sender As TCPSocket)
-		  if sender.LastErrorCode = 102 and IsDisconnecting then
-		    IsDisconnecting = false
-		    RaiseEvent Disconnected
-		  else
-		    IsDisconnecting = false
+		  dim isConnecting as boolean = self.IsConnecting
+		  dim isDisconnecting as boolean = self.IsDisconnecting
+		  dim lastErrorCode as integer = self.LastErrorCode
+		  
+		  self.IsConnecting = false
+		  self.IsDisconnecting = false
+		  
+		  if isConnecting then
+		    //
+		    // Connecting failed, so do nothing
+		    //
 		    
-		    if not RaiseEvent SocketError( sender.LastErrorCode ) then
-		      RaiseException sender.LastErrorCode, "Unexpectedly disconnected"
+		  elseif lastErrorCode = 102 and isDisconnecting then
+		    RaiseEvent Disconnected
+		    
+		  else
+		    dim msg as string 
+		    select case lastErrorCode
+		    case 100
+		      msg = "Cannot initialize or open driver"
+		      
+		    case 102
+		      msg = "Unexpected disconnection"
+		      
+		    case 103
+		      if sender.Address.Trim = "" then
+		        msg = "No Address specified!"
+		      else
+		        msg = "Could not resolve the address " + sender.Address.Trim
+		      end if
+		      
+		    case 106
+		      msg = "Socket is " + if( sender.IsConnected, " in an invalid state", " not connected")
+		      
+		    case 107
+		      msg = "Port " + str( sender.Port ) + " is invalid"
+		      
+		    case 108 
+		      msg = "Out of memory!"
+		      
+		    case else
+		      msg = "Unexpected error"
+		      
+		    end select
+		    
+		    //
+		    // Give a subclass the chance to handle it
+		    //
+		    dim handled as boolean = RaiseEvent SocketError( lastErrorCode, msg ) 
+		    
+		    if not handled then
+		      RaiseException lastErrorCode, msg
 		    end if
 		  end if
 		  
@@ -2649,7 +2696,7 @@ Class Redis_MTC
 	#tag EndHook
 
 	#tag Hook, Flags = &h0, Description = 416E20756E65706563746564206572726F7220686173206F6363757272656420696E2074686520544350536F636B65742E20416E20657863657074696F6E2077696C6C2062652072616973656420756E6C6573732074686973206576656E742072657475726E7320547275652E
-		Event SocketError(code As Integer) As Boolean
+		Event SocketError(code As Integer, msg As String) As Boolean
 	#tag EndHook
 
 
@@ -2726,6 +2773,10 @@ Class Redis_MTC
 		#tag EndGetter
 		IsConnected As Boolean
 	#tag EndComputedProperty
+
+	#tag Property, Flags = &h21
+		Private IsConnecting As Boolean
+	#tag EndProperty
 
 	#tag Property, Flags = &h21
 		Private IsDisconnecting As Boolean
