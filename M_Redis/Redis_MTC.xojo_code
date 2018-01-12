@@ -1144,21 +1144,18 @@ Class Redis_MTC
 		        
 		      case "$" // Bulk string
 		        dim bytes as integer = firstLine.MidB( 2 ).Val
-		        if bytes = -1 then
-		          //
-		          // Null
-		          //
-		          r = nil
-		          pos = pos + firstLine.LenB + eolLen
-		          
-		        elseif bytes = 0 then
+		        if bytes = 0 then
 		          r = ""
 		          pos = pos + firstLine.LenB + eolLen + eolLen
 		          
 		        else
-		          r = s.MidB( pos + firstLine.LenB + eolLen, bytes )
+		          dim data as string = s.MidB( pos + firstLine.LenB + eolLen, bytes )
 		          pos = pos + firstLine.LenB + eolLen + bytes + eolLen
-		          
+		          if Encodings.UTF8.IsValidData( data ) then
+		            r = data
+		          else
+		            r = data.DefineEncoding( nil )
+		          end if
 		        end if
 		        
 		      case "*" // Array

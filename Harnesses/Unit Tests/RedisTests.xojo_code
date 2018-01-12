@@ -61,6 +61,21 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub BinaryDataTest()
+		  dim r as new Redis_MTC
+		  
+		  dim data as string = ChrB( &b10101010 )
+		  data = data + data // Impossible in UTF8
+		  Assert.IsFalse Encodings.UTF8.IsValidData( data )
+		  
+		  Assert.IsTrue r.Set( "xut:key", data )
+		  
+		  dim actual as string = r.Get( "xut:key" )
+		  Assert.AreSame data, actual
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub BitCountTest()
 		  dim r as new Redis_MTC
 		  
