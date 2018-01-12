@@ -1111,56 +1111,55 @@ Class Redis_MTC
 		  do
 		    
 		    dim firstLine as string
+		    dim firstChar as string
+		    
 		    dim eolPos as integer = s.InStrB( pos, eol )
 		    if eolPos = 0 then
-		      eolPos = s.LenB + 1
+		      eolPos = sLen + 1
 		    end if
-		    firstLine = s.MidB( pos, eolPos - pos )
+		    firstChar = s.MidB( pos, 1 )
+		    firstLine = s.MidB( pos + 1, eolPos - pos - 1 )
+		    pos = eolPos + eolLen
 		    
-		    if firstLine = "+OK" then
-		      r = true
-		      pos = pos + firstLine.LenB + eolLen
+		    select case firstChar
+		    case ":" // Integer
+		      dim i as Int64 = firstLine.Val
+		      r = i
 		      
-		    elseif firstLine = "*-1" or firstLine = "$-1" then
-		      r = nil
-		      pos = pos + firstLine.LenB + eolLen
+		    case "+" // Simple string
+		      if firstLine = "OK" then
+		        r = true
+		      else
+		        r = firstLine
+		      end if
 		      
-		    else
-		      dim firstChar as string = firstLine.LeftB( 1 )
+		    case "-" // Error
+		      r = new RedisError( firstLine )
 		      
-		      select case firstChar
-		      case ":" // Integer
-		        dim i as Int64 = firstLine.MidB( 2 ).Val
-		        r = i
-		        pos = pos + firstLine.LenB + eolLen
+		    case "$" // Bulk string
+		      dim bytes as integer = firstLine.Val
+		      if bytes = -1 then
+		        r = nil
 		        
-		      case "+" // Simple string
-		        r = firstLine.MidB( 2 )
-		        pos = pos + firstLine.LenB + eolLen
+		      elseif bytes = 0 then
+		        r = ""
+		        pos = pos + eolLen
 		        
-		      case "-" // Error
-		        r = new RedisError( firstLine.MidB( 2 ) )
-		        pos = pos + firstLine.LenB + eolLen
-		        
-		      case "$" // Bulk string
-		        dim bytes as integer = firstLine.MidB( 2 ).Val
-		        if bytes = 0 then
-		          r = ""
-		          pos = pos + firstLine.LenB + eolLen + eolLen
-		          
+		      else
+		        dim data as string = s.MidB( pos, bytes )
+		        pos = pos + bytes + eolLen
+		        if Encodings.UTF8.IsValidData( data ) then
+		          r = data
 		        else
-		          dim data as string = s.MidB( pos + firstLine.LenB + eolLen, bytes )
-		          pos = pos + firstLine.LenB + eolLen + bytes + eolLen
-		          if Encodings.UTF8.IsValidData( data ) then
-		            r = data
-		          else
-		            r = data.DefineEncoding( nil )
-		          end if
+		          r = data.DefineEncoding( nil )
 		        end if
-		        
-		      case "*" // Array
-		        dim ub as integer = firstLine.MidB( 2 ).Val - 1
-		        pos = pos + firstLine.LenB + eolLen
+		      end if
+		      
+		    case "*" // Array
+		      if firstLine = "-1" then
+		        r = nil
+		      else
+		        dim ub as integer = firstLine.Val - 1
 		        
 		        dim arr() as variant
 		        redim arr( ub )
@@ -1170,10 +1169,9 @@ Class Redis_MTC
 		        next
 		        
 		        r = arr
-		        
-		      end select
+		      end if
 		      
-		    end if
+		    end select
 		    
 		    if useArr then
 		      rArr.Append r
