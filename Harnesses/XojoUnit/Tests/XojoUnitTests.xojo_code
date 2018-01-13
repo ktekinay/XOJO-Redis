@@ -84,6 +84,11 @@ Inherits XojoUnitSuperClassTests
 		  Dim c2 As Currency = 40.00 + 2.38
 		  
 		  Assert.AreEqual(c1, c2)
+		  
+		  c1 = 1.02
+		  c2 = 1.99
+		  
+		  Assert.AreNotEqual(c1, c2)
 		End Sub
 	#tag EndMethod
 
@@ -558,11 +563,32 @@ Inherits XojoUnitSuperClassTests
 
 	#tag ViewBehavior
 		#tag ViewProperty
+			Name="Duration"
+			Group="Behavior"
+			Type="Double"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="FailedTestCount"
+			Group="Behavior"
+			Type="Integer"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="IncludeGroup"
+			Group="Behavior"
+			InitialValue="True"
+			Type="Boolean"
+		#tag EndViewProperty
+		#tag ViewProperty
 			Name="Index"
 			Visible=true
 			Group="ID"
 			InitialValue="-2147483648"
 			Type="Integer"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="IsRunning"
+			Group="Behavior"
+			Type="Boolean"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Left"
@@ -578,10 +604,40 @@ Inherits XojoUnitSuperClassTests
 			Type="String"
 		#tag EndViewProperty
 		#tag ViewProperty
+			Name="NotImplementedCount"
+			Group="Behavior"
+			Type="Integer"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="PassedTestCount"
+			Group="Behavior"
+			Type="Integer"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="RunTestCount"
+			Group="Behavior"
+			Type="Integer"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="SkippedTestCount"
+			Group="Behavior"
+			Type="Integer"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="StopTestOnFail"
+			Group="Behavior"
+			Type="Boolean"
+		#tag EndViewProperty
+		#tag ViewProperty
 			Name="Super"
 			Visible=true
 			Group="ID"
 			Type="String"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="TestCount"
+			Group="Behavior"
+			Type="Integer"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Top"
