@@ -30,6 +30,7 @@ Class=RedisTests;Unit Tests/RedisTests.xojo_code;&h000000001E480FFF;&h0000000074
 Class=RedisBenchmarks;Unit Tests/RedisBenchmarks.xojo_code;&h00000000085CBFFF;&h0000000074D067FF;false
 Class=RedisPipelineBenchmarks;Unit Tests/RedisPipelineBenchmarks.xojo_code;&h000000006F3787FF;&h0000000074D067FF;false
 Class=RedisControl_MTC;../M_Redis/RedisControl_MTC.xojo_code;&h000000003AA987FF;&h0000000016792FFF;false
+Class=InsufficientDataException;../M_Redis/InsufficientDataException.xojo_code;&h00000000183A1FFF;&h0000000016792FFF;false
 DefaultWindow=XojoUnitTestWindow
 AppMenuBar=MainMenuBar
 MajorVersion=1

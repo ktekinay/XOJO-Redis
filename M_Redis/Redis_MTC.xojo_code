@@ -1105,6 +1105,14 @@ Class Redis_MTC
 		  end if
 		  
 		  dim sLen as integer = s.LenB
+		  if pos >= sLen then
+		    //
+		    // We ran out of data
+		    //
+		    #pragma BreakOnExceptions false
+		    raise new M_Redis.InsufficientDataException
+		    #pragma BreakOnExceptions default 
+		  end if
 		  
 		  dim useArr as boolean = not isSubprocess
 		  
@@ -1677,8 +1685,33 @@ Class Redis_MTC
 		    dim s as string = join( Buffer, "" )
 		    redim Buffer( -1 )
 		    
-		    dim pos as integer = 1
-		    Results = InterpretResponse( s, pos )
+		    try
+		      dim pos as integer = 1
+		      Results = InterpretResponse( s, pos )
+		    catch err as M_Redis.InsufficientDataException
+		      //
+		      // We have to try again
+		      //
+		      Buffer.Append s
+		      
+		      #if DebugBuild then
+		        System.DebugLog CurrentMethodName + ": InsufficientDataException"
+		      #endif
+		      
+		    catch err as RuntimeException
+		      //
+		      // Pass along anything else
+		      //
+		      #if DebugBuild then
+		        if not ( err isa EndException or err isa ThreadEndException ) then
+		          break
+		        end if
+		      #endif
+		      
+		      raise err
+		      
+		    end try
+		    
 		  end if
 		  
 		End Sub
