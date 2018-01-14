@@ -1,6 +1,38 @@
 #tag Module
 Protected Module M_Redis
 	#tag Method, Flags = &h1
+		Protected Function CommandArrayToDictionary(varr() As Variant) As Dictionary
+		  if varr() is nil or varr( 0 ) is nil then
+		    return nil
+		  end if
+		  
+		  dim d as new Dictionary
+		  
+		  for outerIndex as integer = 0 to varr.Ubound
+		    dim spec as new M_Redis.CommandSpec
+		    dim element() as variant = varr( outerIndex )
+		    
+		    spec.Name = element( 0 )
+		    spec.Arity = element( 1 )
+		    
+		    dim flags() as variant = element( 2 )
+		    for flagIndex as integer = 0 to flags.Ubound
+		      spec.Flags.Append flags( flagIndex )
+		    next
+		    
+		    spec.FirstKeyIndex = element( 3 )
+		    spec.LastKeyIndex = element( 4 )
+		    spec.KeyStepCount = element( 5)
+		    
+		    d.Value( spec.Name ) = spec
+		  next
+		  
+		  return d
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h1
 		Protected Function HashArrayToDictionary(varr() As Variant, useDict As Dictionary = Nil) As Dictionary
 		  dim d as Dictionary = useDict
 		  if d is nil then

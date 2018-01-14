@@ -159,6 +159,25 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub CommandTest()
+		  dim r as new Redis_MTC
+		  
+		  dim cnt as integer = r.CommandCount
+		  dim commands as Dictionary = r.Command
+		  
+		  Assert.AreEqual cnt, commands.Count
+		  Assert.IsTrue commands.HasKey( "GET" )
+		  
+		  commands = r.CommandInfo( "GET", "SET" )
+		  Assert.AreEqual 2, commands.Count
+		  Assert.IsTrue commands.Lookup( "GET", nil ) isa M_Redis.CommandSpec
+		  
+		  commands = r.CommandInfo( "xososos" )
+		  Assert.IsNil commands
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub ConfigGetTest()
 		  dim r as new Redis_MTC
 		  

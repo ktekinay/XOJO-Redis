@@ -196,6 +196,75 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function Command() As Dictionary
+		  dim r as variant = MaybeSend( "COMMAND", nil )
+		  
+		  if IsPipeline then
+		    
+		    return nil
+		    
+		  else
+		    
+		    dim d as Dictionary = M_Redis.CommandArrayToDictionary( r )
+		    return d
+		    
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function CommandCount() As Integer
+		  dim r as variant = MaybeSend( "COMMAND COUNT", nil )
+		  
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function CommandInfo(commands() As String) As Dictionary
+		  dim params() as string
+		  redim params( commands.Ubound + 2 )
+		  params( 0 ) = "COMMAND"
+		  params( 1 ) = "INFO"
+		  for i as integer = 0 to commands.Ubound
+		    params( i + 2 ) = commands( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return nil
+		    
+		  else
+		    
+		    dim d as Dictionary = M_Redis.CommandArrayToDictionary( r )
+		    return d
+		    
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function CommandInfo(command As String, ParamArray moreCommands() As String) As Dictionary
+		  dim allCommands() as string
+		  redim allCommands( moreCommands.Ubound + 1 )
+		  allCommands( 0 ) = command
+		  for i as integer = 0 to moreCommands.Ubound
+		    allCommands( i + 1 ) = moreCommands( i )
+		  next
+		  
+		  return CommandInfo( allCommands )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function ConfigGet(pattern As String = "*") As Dictionary
 		  if pattern = "" then
 		    pattern = "*"
@@ -2134,12 +2203,6 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Sub SetMultiple(ParamArray keyValue() As Pair)
-		  SetMultiple keyValue
-		End Sub
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
 		Sub SetMultiple(keyValue() As Pair)
 		  dim parts() as string
 		  
@@ -2150,6 +2213,12 @@ Class Redis_MTC
 		  next
 		  
 		  call Execute( "MSET", parts ) // Let Execute do this work
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub SetMultiple(ParamArray keyValue() As Pair)
+		  SetMultiple keyValue
 		End Sub
 	#tag EndMethod
 
