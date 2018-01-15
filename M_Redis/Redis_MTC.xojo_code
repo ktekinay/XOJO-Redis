@@ -1536,73 +1536,82 @@ Class Redis_MTC
 		    next
 		  end if
 		  
-		  dim h as new SemaphoreHolder( CommandSemaphore )
+		  dim r as variant
 		  
-		  dim cmd as string
-		  dim isPipeline as boolean = PipelineCount > 0
+		  CommandSemaphore.Signal
 		  
-		  if IsFlushingPipeline or formattedCommand <> "" then
-		    cmd = formattedCommand
+		  try
+		    dim cmd as string
+		    dim isPipeline as boolean = PipelineCount > 0
 		    
-		  else
-		    dim redisUb as integer = commandParts.Ubound + 1
-		    dim arrUb as integer = redisUb * 2
-		    dim arr() as string
-		    redim arr( arrUb )
-		    
-		    arr( 0 ) = if( redisUb > arrayCounts.Ubound, "*" + str( redisUb ), arrayCounts( redisUb ) )
-		    dim arrIndex as integer = 0
-		    for i as integer = 0 to commandParts.Ubound
-		      dim p as string = commandParts( i )
-		      dim pLen as integer = p.LenB
+		    if IsFlushingPipeline or formattedCommand <> "" then
+		      cmd = formattedCommand
 		      
-		      arrIndex = arrIndex + 1
-		      arr( arrIndex ) = if( pLen > dollars.Ubound, "$" + str( pLen ), dollars( pLen ) )
-		      arrIndex = arrIndex + 1
-		      arr( arrIndex ) = p
-		    next
-		    
-		    cmd = join( arr, eol )
-		  end if
-		  
-		  if cmd <> "" then
-		    zLastCommand = cmd
-		    RequestCount = RequestCount + 1
-		    
-		    if isPipeline then
-		      PipelineQueue.Append cmd
-		      cmd = ""
-		    end if
-		  end if
-		  
-		  if cmd = "" and PipelineQueue.Ubound <> -1 and ( _
-		    IsFlushingPipeline or _
-		    ( isPipeLine and ( PipelineQueue.Ubound + 1 ) = PipelineCount ) _
-		    ) then
-		    cmd = join( PipelineQueue, eol )
-		    redim PipelineQueue( -1 )
-		  end if
-		  
-		  if cmd <> "" then
-		    Socket.Write cmd + eol
-		    Socket.Flush
-		  end if
-		  
-		  if isPipeline and not IsFlushingPipeline then
-		    h = nil
-		    return true
-		    
-		  else
-		    dim r as variant = GetResponse
-		    h = nil
-		    
-		    if r.Type = Variant.TypeObject and r isa RedisError then
-		      RaiseException 0, RedisError( r ).Message
+		    else
+		      dim redisUb as integer = commandParts.Ubound + 1
+		      dim arrUb as integer = redisUb * 2
+		      dim arr() as string
+		      redim arr( arrUb )
+		      
+		      arr( 0 ) = if( redisUb > arrayCounts.Ubound, "*" + str( redisUb ), arrayCounts( redisUb ) )
+		      dim arrIndex as integer = 0
+		      for i as integer = 0 to commandParts.Ubound
+		        dim p as string = commandParts( i )
+		        dim pLen as integer = p.LenB
+		        
+		        arrIndex = arrIndex + 1
+		        arr( arrIndex ) = if( pLen > dollars.Ubound, "$" + str( pLen ), dollars( pLen ) )
+		        arrIndex = arrIndex + 1
+		        arr( arrIndex ) = p
+		      next
+		      
+		      cmd = join( arr, eol )
 		    end if
 		    
-		    return r
+		    if cmd <> "" then
+		      zLastCommand = cmd
+		      RequestCount = RequestCount + 1
+		      
+		      if isPipeline then
+		        PipelineQueue.Append cmd
+		        cmd = ""
+		      end if
+		    end if
 		    
-		  end if
+		    if cmd = "" and PipelineQueue.Ubound <> -1 and ( _
+		      IsFlushingPipeline or _
+		      ( isPipeLine and ( PipelineQueue.Ubound + 1 ) = PipelineCount ) _
+		      ) then
+		      cmd = join( PipelineQueue, eol )
+		      redim PipelineQueue( -1 )
+		    end if
+		    
+		    if cmd <> "" then
+		      Socket.Write cmd + eol
+		      Socket.Flush
+		    end if
+		    
+		    if isPipeline and not IsFlushingPipeline then
+		      r = true
+		      
+		    else
+		      r = GetResponse
+		      
+		      if r.Type = Variant.TypeObject and r isa RedisError then
+		        RaiseException 0, RedisError( r ).Message
+		      end if
+		      
+		    end if
+		    
+		  catch err As RuntimeException
+		    CommandSemaphore.Release
+		    raise err
+		    
+		  end try
+		  
+		  CommandSemaphore.Release
+		  return r
+		  
 		  
 		End Function
 	#tag EndMethod
