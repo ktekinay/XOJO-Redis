@@ -163,16 +163,24 @@ Inherits TestGroup
 		  dim r as new Redis_MTC
 		  
 		  dim cnt as integer = r.CommandCount
+		  #pragma BreakOnExceptions false
 		  dim commands as Dictionary = r.Command
+		  #pragma BreakOnExceptions default
 		  
 		  Assert.AreEqual cnt, commands.Count
 		  Assert.IsTrue commands.HasKey( "GET" )
 		  
+		  #pragma BreakOnExceptions false
 		  commands = r.CommandInfo( "GET", "SET" )
+		  #pragma BreakOnExceptions default
+		  
 		  Assert.AreEqual 2, commands.Count
 		  Assert.IsTrue commands.Lookup( "GET", nil ) isa M_Redis.CommandSpec
 		  
+		  #pragma BreakOnExceptions false
 		  commands = r.CommandInfo( "xososos" )
+		  #pragma BreakOnExceptions default
+		  
 		  Assert.IsNil commands
 		End Sub
 	#tag EndMethod

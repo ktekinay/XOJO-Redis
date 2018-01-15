@@ -1162,26 +1162,12 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h21
-		Private Function InterpretResponse(s As String, ByRef pos As Integer, isSubprocess As Boolean = False) As Variant
+		Private Function InterpretResponse(s As String, sLen As Integer, ByRef pos As Integer, isSubprocess As Boolean = False) As Variant
 		  static eol as string = self.EOL
 		  static eolLen as integer = eol.LenB
 		  
 		  dim rArr() as variant = Results
 		  dim r as variant
-		  
-		  if pos < 2 then
-		    pos = 1
-		  end if
-		  
-		  dim sLen as integer = s.LenB
-		  if pos >= sLen then
-		    //
-		    // We ran out of data
-		    //
-		    #pragma BreakOnExceptions false
-		    raise new M_Redis.InsufficientDataException
-		    #pragma BreakOnExceptions default 
-		  end if
 		  
 		  dim useArr as boolean = not isSubprocess
 		  
@@ -1190,10 +1176,14 @@ Class Redis_MTC
 		    dim firstLine as string
 		    dim firstChar as string
 		    
-		    dim eolPos as integer = s.InStrB( pos, eol )
+		    dim eolPos as integer = s.InStrB( pos + 1, eol )
 		    if eolPos = 0 then
-		      eolPos = sLen + 1
+		      //
+		      // There must be one EOL in valid data
+		      //
+		      raise new M_Redis.InsufficientDataException
 		    end if
+		    
 		    firstChar = s.MidB( pos, 1 )
 		    firstLine = s.MidB( pos + 1, eolPos - pos - 1 )
 		    pos = eolPos + eolLen
@@ -1214,38 +1204,50 @@ Class Redis_MTC
 		      r = new RedisError( firstLine )
 		      
 		    case "$" // Bulk string
-		      dim bytes as integer = firstLine.Val
-		      if bytes = -1 then
+		      if firstLine = "-1" then
 		        r = nil
 		        
-		      elseif bytes = 0 then
+		      elseif firstLine = "0" then
 		        r = ""
 		        pos = pos + eolLen
 		        
 		      else
+		        dim bytes as integer = firstLine.Val
+		        
 		        dim data as string = s.MidB( pos, bytes )
-		        pos = pos + bytes + eolLen
 		        if Encodings.UTF8.IsValidData( data ) then
 		          r = data
 		        else
 		          r = data.DefineEncoding( nil )
 		        end if
+		        
+		        pos = pos + bytes + eolLen
+		        
+		      end if
+		      
+		      if pos > ( sLen + 1 ) then
+		        raise new M_Redis.InsufficientDataException
 		      end if
 		      
 		    case "*" // Array
 		      if firstLine = "-1" then
 		        r = nil
+		        
 		      else
 		        dim ub as integer = firstLine.Val - 1
 		        
 		        dim arr() as variant
-		        redim arr( ub )
 		        
-		        for i as integer = 0 to ub
-		          arr( i ) = InterpretResponse( s, pos, true )
-		        next
+		        if ub <> -1 then
+		          redim arr( ub )
+		          
+		          for i as integer = 0 to ub
+		            arr( i ) = InterpretResponse( s, sLen, pos, true )
+		          next
+		        end if
 		        
 		        r = arr
+		        
 		      end if
 		      
 		    end select
@@ -1756,7 +1758,8 @@ Class Redis_MTC
 		    
 		    try
 		      dim pos as integer = 1
-		      Results = InterpretResponse( s, pos )
+		      Results = InterpretResponse( s, s.LenB, pos )
+		      
 		    catch err as M_Redis.InsufficientDataException
 		      //
 		      // We have to try again
