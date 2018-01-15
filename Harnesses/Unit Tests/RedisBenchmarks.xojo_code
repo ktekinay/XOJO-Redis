@@ -10,7 +10,7 @@ Inherits TestGroup
 		    #pragma BoundsChecking false
 		  #endif
 		  
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  dim sw as new Stopwatch_MTC
 		  
@@ -36,7 +36,7 @@ Inherits TestGroup
 		    #pragma BoundsChecking false
 		  #endif
 		  
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  dim sw as new Stopwatch_MTC
 		  
@@ -62,7 +62,7 @@ Inherits TestGroup
 		    #pragma BoundsChecking false
 		  #endif
 		  
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  dim key as string = "xut:__rand_int__"
 		  dim data as string = "xxx"

@@ -16,7 +16,7 @@ Inherits TestGroup
 		    #pragma BoundsChecking false
 		  #endif
 		  
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  r.StartPipeline( pipelines )
 		  
 		  Assert.Message "With " + pipelines.ToText + " pipelines"

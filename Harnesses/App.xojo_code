@@ -1,6 +1,30 @@
 #tag Class
 Protected Class App
 Inherits Application
+	#tag Event
+		Sub Open()
+		  XojoUnitTestWindow.Show
+		  WndRedisSettings.Show
+		  WndRedisSettings.Left = XojoUnitTestWindow.Left + XojoUnitTestWindow.Width
+		  XojoUnitTestWindow.Show
+		  
+		End Sub
+	#tag EndEvent
+
+
+	#tag Property, Flags = &h0
+		RedisAddress As String = "localhost"
+	#tag EndProperty
+
+	#tag Property, Flags = &h0
+		RedisPassword As String
+	#tag EndProperty
+
+	#tag Property, Flags = &h0
+		RedisPort As Integer = 6379
+	#tag EndProperty
+
+
 	#tag Constant, Name = kEditClear, Type = String, Dynamic = False, Default = \"&Delete", Scope = Public
 		#Tag Instance, Platform = Windows, Language = Default, Definition  = \"&Delete"
 		#Tag Instance, Platform = Linux, Language = Default, Definition  = \"&Delete"

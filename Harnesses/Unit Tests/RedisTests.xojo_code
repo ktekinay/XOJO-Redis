@@ -9,11 +9,11 @@ Inherits TestGroup
 		  
 		  #pragma BreakOnExceptions false
 		  try
-		    r = new Redis_MTC
+		    r = new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  catch err as RuntimeException
 		    r = new Redis_MTC( "pw" )
 		    r.ConfigSet Redis_MTC.kConfigRequirePass, ""
-		    r = new Redis_MTC
+		    r = new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  end try
 		  #pragma BreakOnExceptions default
 		  
@@ -25,7 +25,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub AppendTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual 1, r.Append( "xut:key", "h" )
 		  Assert.AreSame "h", r.Get( "xut:key" )
@@ -39,14 +39,19 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub AuthTest()
-		  dim r as new Redis_MTC
+		  //
+		  // A dangerous test that we do not perform unless needed
+		  //
+		  return
+		  
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  r.ConfigSet Redis_MTC.kConfigRequirePass, "pw"
 		  
 		  r = nil
 		  
 		  #pragma BreakOnExceptions false
 		  try
-		    r = new Redis_MTC
+		    r = new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		    Assert.Fail "Created unauthenticated object"
 		  catch err as RuntimeException
 		    Assert.Pass "Created authenticated object"
@@ -62,7 +67,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub BinaryDataTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  dim data as string = ChrB( &b10101010 )
 		  data = data + data // Impossible in UTF8
@@ -77,7 +82,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub BitCountTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key", "abc123", 100 )
 		  Assert.AreEqual 20, r.BitCount( "xut:key" ), "Full"
@@ -90,11 +95,11 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub BitFieldIncrementByTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
-		  Assert.AreEqual 0, r.BitFieldSet( "xut:key", r.kTypeUInt32, 0, 0 )
-		  Assert.AreEqual Int64( 5 ), r.BitFieldIncrementBy( "xut:key", "u8", 0, 5 )
-		  Assert.AreEqual Int64( 7 ), r.BitFieldIncrementBy( "xut:key", "u8", 0, 2, false, Redis_MTC.Overflows.Sat )
+		  Assert.AreEqual CType( 0, Int64), r.BitFieldSet( "xut:key", r.kTypeUInt32, 0, 0 )
+		  Assert.AreEqual CType( 5, Int64 ), r.BitFieldIncrementBy( "xut:key", "u8", 0, 5 )
+		  Assert.AreEqual CType( 7, Int64 ), r.BitFieldIncrementBy( "xut:key", "u8", 0, 2, false, Redis_MTC.Overflows.Sat )
 		  Assert.Message "With Overflow: " + &uA + ReplaceLineEndings( r.LastCommand.Trim, &uA ).ToText
 		  
 		  r.Delete "xut:key"
@@ -104,15 +109,17 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub BitFieldSetGetTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
-		  Assert.AreEqual 0, r.BitFieldSet( "xut:key","u8", 0, &b10101010 ), "Set 1"
+		  const kZero as Int64 = 0
+		  
+		  Assert.AreEqual kZero, r.BitFieldSet( "xut:key","u8", 0, &b10101010 ), "Set 1"
 		  Assert.AreEqual CType( &b0101, Int64 ), r.BitFieldSet( "xut:key", "u4", 1, 1 ), "Set 2"
 		  Assert.AreEqual CType( &b10001010, Int64 ), r.BitFieldGet( "xut:key", r.kTypeUInt8, 0 ), "Get"
 		  
 		  r.Delete "xut:key"
 		  
-		  Assert.AreEqual 0, r.BitFieldSet( "xut:key", "u32", 0, &hFFFFFFFF )
+		  Assert.AreEqual kZero, r.BitFieldSet( "xut:key", "u32", 0, &hFFFFFFFF )
 		  Assert.AreEqual CType( &hFF, Int64 ), r.BitFieldSet( "xut:key", "u8", 1, 0, true )
 		  Assert.AreEqual CType( &hFF00FFFF, Int64 ), r.BitFieldGet( "xut:key", "u32", 0 )
 		  Assert.AreEqual CType( &hFFFF, Int64 ), r.BitfieldGet( "xut:key", "u16", 1, true )
@@ -121,7 +128,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub BitOpTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key1", "foobar" )
 		  Assert.IsTrue r.Set( "xut:key2", "abcdef" )
@@ -144,7 +151,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub BitPosTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key", ChrB( &b10101010 ) + ChrB( &b01010101 ), 1000 )
 		  Assert.AreEqual 0, r.BitPos( "xut:key", 1 ), "1 in entire"
@@ -160,7 +167,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub CommandTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  dim cnt as integer = r.CommandCount
 		  #pragma BreakOnExceptions false
@@ -187,7 +194,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub ConfigGetTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  dim values as Dictionary = r.ConfigGet
 		  Assert.IsNotNil values
@@ -199,7 +206,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub ConnectTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  #pragma unused r
 		  
 		  Assert.Pass "Connected"
@@ -209,7 +216,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub DBSizeTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  r.SetMultiple( "xut:key1" : "value", "xut:key2" : "value2", "xut:key3" : "value3" )
 		  Assert.IsTrue r.DBSize >= 3
@@ -220,7 +227,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub DecrementByTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual -2, r.DecrementBy( "xut:key", 2 )
 		  Assert.AreEqual -5, r.DecrementBy( "xut:key", 3 )
@@ -235,7 +242,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub DecrementTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual -1, r.Decrement( "xut:key" )
 		  Assert.AreEqual -2, r.Decrement( "xut:key" )
@@ -250,7 +257,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub DeleteTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key", "value" )
 		  r.Delete( "xut:key" )
@@ -284,7 +291,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub EchoTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual "hi", r.Echo( "hi" )
 		  
@@ -293,7 +300,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub ExistsTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key", "value" )
 		  Assert.IsTrue r.Exists( "xut:key" )
@@ -308,7 +315,7 @@ Inherits TestGroup
 		  dim d as new Date
 		  d.TotalSeconds = d.TotalSeconds + 1.0
 		  
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key1", "value" )
 		  r.ExpireAt "xut:key1", d
@@ -331,7 +338,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub ExpireTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key1", "value" )
 		  r.Expire "xut:key1", 10
@@ -354,7 +361,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub FinishPipelineTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  r.StartPipeline 100
 		  
 		  for i as integer = 1 to 9
@@ -363,7 +370,7 @@ Inherits TestGroup
 		  
 		  r = nil
 		  
-		  r = new Redis_MTC
+		  r = new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  dim keys() as string = r.Scan( "xut:*" )
 		  Assert.AreEqual 8, CType( keys.Ubound, integer )
 		  
@@ -391,7 +398,8 @@ Inherits TestGroup
 		  // A dangerous test that we do not perform unless needed
 		  //
 		  return
-		  dim r as new Redis_MTC
+		  
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  Assert.IsTrue r.Set( "xut:key", "value" )
 		  
 		  r.FlushAll
@@ -406,7 +414,7 @@ Inherits TestGroup
 		  //
 		  return
 		  
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  Assert.IsTrue r.Set( "xut:key", "value" )
 		  
 		  r.FlushDB
@@ -416,7 +424,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub GetRangeTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key", "hi there" )
 		  Assert.AreSame "hi there", r.GetRange( "xut:key", 0, 7 )
@@ -431,7 +439,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub GetSetTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual "", r.GetSet( "xut:key", "a" )
 		  Assert.AreEqual "a", r.GetSet( "xut:key", "b" )
@@ -444,7 +452,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub HashFunctionsTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual 1, r.HSet( "xut:hash", "field1", "value" )
 		  Assert.AreEqual 0, r.HSet( "xut:hash", "field1", "newvalue" )
@@ -507,7 +515,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub IncrementByFloatTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual 0.5, r.IncrementByFloat( "xut:key", 0.5 )
 		  Assert.AreEqual 1.0, r.IncrementByFloat( "xut:key", 0.5 )
@@ -523,7 +531,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub IncrementByTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual 2, r.IncrementBy( "xut:key", 2 )
 		  Assert.AreEqual 5, r.IncrementBy( "xut:key", 3 )
@@ -538,7 +546,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub IncrementTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual 1, r.Increment( "xut:key" )
 		  Assert.AreEqual 2, r.Increment( "xut:key" )
@@ -553,7 +561,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub InfoTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  dim memory as Dictionary = r.Info( Redis_MTC.kSectionMemory )
 		  Assert.IsTrue memory.Count <> 0
@@ -575,7 +583,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub KeysTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  dim keys() as string = r.Keys( "xut:*" )
 		  Assert.AreEqual CType( -1, Int32 ), keys.Ubound
@@ -594,7 +602,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub ListFunctionsTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  //
 		  // LPush
@@ -760,7 +768,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub MoveTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key", "value", 30 )
 		  Assert.AreEqual 1, r.Move( "xut:key", 1 ), "Couldn't move"
@@ -773,7 +781,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub ObjectEncodingTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key", "value", 30 )
 		  dim enc as string = r.ObjectEncoding( "xut:key" )
@@ -806,7 +814,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub PersistTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key1", "v", 30 )
 		  Assert.IsTrue r.TimeToLiveMs( "xut:key1" ) <> -1
@@ -819,7 +827,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub PingTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreSame "PONG", r.Ping
 		  Assert.AreSame "something", r.Ping( "something" )
@@ -831,7 +839,7 @@ Inherits TestGroup
 		Sub PipelineTest()
 		  const kUB as Int32 = 999
 		  
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  r.StartPipeline 7
 		  
 		  for i as integer = 0 to kUB
@@ -879,7 +887,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub RandomKeyTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key", "value" )
 		  dim randKey as string = r.RandomKey
@@ -906,8 +914,12 @@ Inherits TestGroup
 		Sub RedisControlTest()
 		  dim r as new RedisControl_MTC
 		  Assert.IsFalse r.IsConnected
-		  Assert.IsTrue r.Connect
-		  Assert.IsTrue r.Set( "xut:key", "value", 1 )
+		  
+		  r.Address = App.RedisAddress
+		  r.Port = App.RedisPort
+		  Assert.IsTrue r.Connect( App.RedisPassword )
+		  
+		  Assert.IsTrue r.Set( "xut:key", "value", 1000 )
 		  
 		  r = new RedisControl_MTC
 		  r.Address = ""
@@ -933,7 +945,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub RenameTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key", "value" )
 		  r.Rename "xut:key", "xut:key1"
@@ -960,7 +972,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub ResponseInPipelineEventTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  Redis = r
 		  AddHandler r.ResponseInPipeline, WeakAddressOf Redis_ResponseInPipeline
 		  
@@ -976,7 +988,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub ScanTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  r.SetMultiple "xut:key1" : "value", "xut:key2" : "other", "xutut:key" : "value"
 		  dim keys() as string = r.Scan( "xut:*" )
@@ -1017,7 +1029,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub SelectDBTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:db0", "0", 30000 )
 		  r.SelectDB 1
@@ -1039,7 +1051,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub SetBitGetBitTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual 0, r.SetBit( "xut:key", 0, 1 )
 		  Assert.AreEqual 1, r.GetBit( "xut:key", 0 )
@@ -1051,7 +1063,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub SetExpiredTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key", "value", 10 )
 		  Pause 20
@@ -1070,7 +1082,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub SetFunctionsTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual 6, r.SAdd( "xut:set", "1", "2", "3", "4", "5", "6" )
 		  Assert.AreEqual 2, r.SRemove( "xut:set", "5", "6", "7" )
@@ -1187,7 +1199,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub SetGetMultipleTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  r.SetMultiple "xut:key1" : "value1", "xut:key2" : "value2"
 		  dim arr() as variant = r.GetMultiple( "xut:key1", "xut:key2", "xut:key3" )
@@ -1200,7 +1212,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub SetGetTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key", "value" )
 		  Assert.AreSame "value", r.Get( "xut:key" )
@@ -1218,7 +1230,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub SetMultipleIfNoneExistTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.SetMultipleIfNoneExist( "xut:key1" : "value", "xut:key2" : "another" ), "Initial set"
 		  Assert.IsFalse r.SetMultipleIfNoneExist( "xut:key2" : "value", "xut:key3" : "another" ), "One exists"
@@ -1228,7 +1240,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub SetRangeTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual 2, r.SetRange( "xut:key", 0, "hi" )
 		  Assert.AreSame "hi", r.Get( "xut:key" )
@@ -1245,7 +1257,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub SortTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual 5, r.RPush( "xut:mylist", "2", "20", "100", "10", "1" )
 		  
@@ -1287,7 +1299,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub SortToTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual 5, r.RPush( "xut:mylist", "2", "20", "100", "10", "1" )
 		  
@@ -1335,7 +1347,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub StrLenTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual 0, r.StrLen( "xut:key" )
 		  Assert.IsTrue r.Set( "xut:key", "hi" )
@@ -1348,8 +1360,10 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub ThreadTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  Redis = r
+		  
+		  call r.Set( "xut:mainthreadtest", "xxx" )
 		  
 		  dim t as new Thread
 		  AddHandler t.Run, WeakAddressOf ThreadTestRun
@@ -1360,11 +1374,12 @@ Inherits TestGroup
 		  
 		  while t.State <> Thread.NotRunning
 		    Assert.IsTrue r.Set( "xut:threadtestkey", "main" )
+		    Assert.AreEqual "xxx", r.GetSet( "xut:mainthreadtest", "xxx" )
 		  wend
 		  
 		  RemoveHandler t.Run, WeakAddressOf ThreadTestRun
 		  
-		  r.Delete "xut:threadtestkey"
+		  call r.Delete( "xut:threadtestkey", "xut:mainthreadtest" )
 		  
 		  Redis = nil
 		  
@@ -1387,17 +1402,17 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub TimeTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  dim d as Date = r.Time
 		  dim now as new Date
-		  Assert.AreEqual now.SQLDateTime, d.SQLDateTime
+		  Assert.IsTrue abs( now.TotalSeconds -  d.TotalSeconds ) <= 1.0, "Server time more than a second different"
 		  
 		End Sub
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
 		Sub TimeToLiveTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key1", "value", 60 )
 		  Assert.IsTrue r.TimeToLiveMs( "xut:key1" ) >= 58
@@ -1422,7 +1437,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub TouchAndObjectIdleTimeTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key1", "value", 30 )
 		  Assert.IsTrue r.Set( "xut:key2", "another", 30 )
@@ -1449,7 +1464,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub TypeTest()
-		  dim r as new Redis_MTC
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.IsTrue r.Set( "xut:key1", "value" )
 		  Assert.AreEqual "string", r.Type( "xut:key1" )
