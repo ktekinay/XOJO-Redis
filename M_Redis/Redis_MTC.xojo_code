@@ -1510,9 +1510,9 @@ Class Redis_MTC
 	#tag Method, Flags = &h21
 		Private Function MaybeSend(formattedCommand As String, commandParts() As String) As Variant
 		  //
-		  // This assumes that all params are correct and the first item in
-		  // parameters() is the command. Either a pre-formatted command or 
-		  // the parts of the command will be considered, never both.
+		  // This assumes that all params are correct. Either a 
+		  // pre-formatted command or the parts of the command will 
+		  // be considered, never both.
 		  //
 		  // formattedCommand = "" and commandParts = nil means it is
 		  // flushing the pipeline.
