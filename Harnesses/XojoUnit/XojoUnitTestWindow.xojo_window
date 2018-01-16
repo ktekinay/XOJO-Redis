@@ -1061,6 +1061,7 @@ End
 		  
 		  ProgressWheel1.Visible = True
 		  TestToolbar1.RunButton.Enabled = False
+		  TestToolbar1.RunUntilFailButton.Enabled = False
 		  TestToolbar1.StopButton.Enabled = True
 		  TestToolbar1.ExportButton.Enabled = False
 		  
@@ -1158,8 +1159,33 @@ End
 	#tag EndMethod
 
 	#tag Method, Flags = &h21
+		Private Sub SelectOneGroup(tg As TestGroup, value As Boolean)
+		  tg.IncludeGroup = value
+		  TestGroupList.CellCheck(RowOfTestGroup(tg), ColInclude) = tg.IncludeGroup
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub SelectOneTest(tg As TestGroup, tr As TestResult)
+		  SelectOneGroup(tg, True)
+		  
+		  tr.IncludeMethod = True
+		  Dim row As Integer = RowOfTestResult(tr)
+		  If row <> -1 Then
+		    TestGroupList.CellCheck(row, ColInclude) = True
+		  End If
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
 		Private Sub StopTests()
-		  Controller.Stop
+		  If RunUntilFail Then
+		    RunUntilFail = False
+		  Else
+		    Controller.Stop
+		  End If
 		  
 		End Sub
 	#tag EndMethod
@@ -1174,10 +1200,15 @@ End
 		    Quit
 		  End If
 		  
-		  ProgressWheel1.Visible = False
-		  TestToolbar1.RunButton.Enabled = True
-		  TestToolbar1.StopButton.Enabled = False
-		  TestToolbar1.ExportButton.Enabled = True
+		  If RunUntilFail And Controller.FailedCount = 0 Then
+		    RunTests
+		  Else
+		    ProgressWheel1.Visible = False
+		    TestToolbar1.RunButton.Enabled = True
+		    TestToolbar1.RunUntilFailButton.Enabled = True
+		    TestToolbar1.StopButton.Enabled = False
+		    TestToolbar1.ExportButton.Enabled = True
+		  End If
 		  
 		End Sub
 	#tag EndMethod
@@ -1226,11 +1257,7 @@ End
 		    TestGroupList.CellCheck(row, ColInclude) = tr.IncludeMethod
 		    
 		    If TestGroupList.ListIndex = row Then
-		      //
-		      // Trigger Change event
-		      //
-		      TestGroupList.ListIndex = -1
-		      TestGroupList.ListIndex = row
+		      UpdateTestSummary
 		    End If
 		  End If
 		  
@@ -1242,21 +1269,59 @@ End
 		  TestGroupList.Invalidate
 		  
 		  Dim tgRow As Integer = RowOfTestGroup(tg)
-		  If tgRow = -1 Or TestGroupList.Expanded(tgRow) = False Then
+		  If tgRow = -1 Then
 		    Return
 		  End If
 		  
-		  For row As Integer = tgRow + 1 To TestGroupList.ListCount - 1
-		    Dim tag As Variant = TestGroupList.RowTag(row)
-		    If Not (tag IsA TestResult) Then
-		      //
-		      // We have exhausted the group
-		      //
-		      Return
-		    End If
-		    
-		    UpdateTestResult(TestResult(tag), row)
-		  Next
+		  If TestGroupList.ListIndex = tgRow Then
+		    UpdateTestSummary
+		  End If
+		  
+		  If TestGroupList.Expanded(tgRow) Then
+		    For row As Integer = tgRow + 1 To TestGroupList.ListCount - 1
+		      Dim tag As Variant = TestGroupList.RowTag(row)
+		      If Not (tag IsA TestResult) Then
+		        //
+		        // We have exhausted the group
+		        //
+		        Return
+		      End If
+		      
+		      UpdateTestResult(TestResult(tag), row)
+		    Next
+		  End If
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub UpdateTestSummary()
+		  Dim name As String
+		  Dim result As String
+		  Dim message As String
+		  Dim duration As String
+		  
+		  Dim item As Variant
+		  If TestGroupList.ListIndex <> -1 Then
+		    item = TestGroupList.RowTag(TestGroupList.ListIndex)
+		  End If
+		  
+		  If item IsA TestResult Then
+		    Dim tr As TestResult = item
+		    name = tr.TestName
+		    result = tr.Result
+		    message = tr.Message
+		    duration = Format(tr.Duration, "#,0.0000000") + "s"
+		  ElseIf item IsA TestGroup Then
+		    Dim tg As TestGroup = item
+		    name = tg.Name + " Group"
+		    duration = Format(tg.Duration, "#,0.0000000") + "s"
+		  End If
+		  
+		  TestNameLabel.Text = name
+		  TestResultLabel.Text = result
+		  TestResultsArea.Text = message
+		  TestDurationLabel.Text = duration
 		  
 		End Sub
 	#tag EndMethod
@@ -1293,6 +1358,10 @@ End
 		Private ExportFilePath As String
 	#tag EndProperty
 
+	#tag Property, Flags = &h21
+		Private RunUntilFail As Boolean
+	#tag EndProperty
+
 
 	#tag Constant, Name = kCMSelectAllGroups, Type = String, Dynamic = False, Default = \"Select All Groups", Scope = Private
 	#tag EndConstant
@@ -1303,6 +1372,9 @@ End
 	#tag Constant, Name = kCMSelectAllTests, Type = String, Dynamic = False, Default = \"Select All Tests In This Group", Scope = Private
 	#tag EndConstant
 
+	#tag Constant, Name = kCMSelectFailedTests, Type = String, Dynamic = False, Default = \"Select Failed Test(s)", Scope = Private
+	#tag EndConstant
+
 	#tag Constant, Name = kCMSelectInverseGroups, Type = String, Dynamic = False, Default = \"Select Inverse Goups", Scope = Private
 	#tag EndConstant
 
@@ -1310,6 +1382,9 @@ End
 	#tag EndConstant
 
 	#tag Constant, Name = kCMSelectInverseTests, Type = String, Dynamic = False, Default = \"Select Inverse Tests In This Group", Scope = Private
+	#tag EndConstant
+
+	#tag Constant, Name = kCMSelectOneTest, Type = String, Dynamic = False, Default = \"Select This Test Only", Scope = Private
 	#tag EndConstant
 
 	#tag Constant, Name = kCMSelectThisGroup, Type = String, Dynamic = False, Default = \"Select This Group", Scope = Private
@@ -1356,18 +1431,7 @@ End
 	#tag EndEvent
 	#tag Event
 		Sub Change()
-		  Dim row As Integer = Me.ListIndex
-		  
-		  If row < 0 Then Return
-		  
-		  If Me.RowTag(row) IsA TestResult Then
-		    Dim tr As TestResult
-		    tr = Me.RowTag(row)
-		    TestNameLabel.Text = tr.TestName
-		    TestResultLabel.Text = tr.Result
-		    TestResultsArea.Text = tr.Message
-		    TestDurationLabel.Text = Format(tr.Duration, "#,###.0000000") + "s"
-		  End If
+		  UpdateTestSummary
 		End Sub
 	#tag EndEvent
 	#tag Event
@@ -1422,6 +1486,17 @@ End
 		  Case kCMSelectInverseGroups
 		    SelectInverseGroups(False)
 		    
+		  Case kCMSelectFailedTests
+		    SelectAllGroups(False, True)
+		    
+		    For Each tg As TestGroup In Controller.TestGroups
+		      For Each tr As TestResult In tg.Results
+		        If tr.Result = TestResult.Failed Then
+		          SelectOneTest(tg, tr)
+		        End If
+		      Next
+		    Next
+		    
 		  Case kCMSelectAllTests
 		    SelectAllTests(hitItem.Tag, True)
 		    
@@ -1431,15 +1506,20 @@ End
 		  Case kCMUnselectAllTests
 		    SelectAllTests(hitItem.Tag, False)
 		    
+		  Case kCMSelectOneTest
+		    Dim tag As Pair = hitItem.Tag
+		    Dim tg As TestGroup = tag.Left
+		    Dim tr As TestResult = tag.Right
+		    SelectAllGroups(False, True)
+		    SelectOneTest(tg, tr)
+		    
 		  Case kCMSelectThisGroup
 		    Dim tg As TestGroup = hitItem.Tag
-		    tg.IncludeGroup = True
-		    TestGroupList.CellCheck(RowOfTestGroup(tg), ColInclude) = tg.IncludeGroup
+		    SelectOneGroup(tg, True)
 		    
 		  Case kCMUnselectThisGroup
 		    Dim tg As TestGroup = hitItem.Tag
-		    tg.IncludeGroup = False
-		    TestGroupList.CellCheck(RowOfTestGroup(tg), ColInclude) = tg.IncludeGroup
+		    SelectOneGroup(tg, False)
 		    
 		  Case kCMSelectAllGroupsAndTests
 		    SelectAllGroups(True, True)
@@ -1465,6 +1545,12 @@ End
 		  base.Append(New MenuItem(kCMSelectInverseGroups))
 		  base.Append(New MenuItem(kCMUnselectAllGroups))
 		  
+		  If Controller.FailedCount <> 0 Then
+		    base.Append(New MenuItem(MenuItem.TextSeparator))
+		    
+		    base.Append(New MenuItem(kCMSelectFailedTests))
+		  End If
+		  
 		  If Me.ListIndex <> -1 Then
 		    Dim tg As TestGroup
 		    For row As Integer = Me.ListIndex DownTo 0
@@ -1474,6 +1560,9 @@ End
 		      End If
 		    Next
 		    
+		    Dim tr As TestResult = _
+		    If(Me.RowTag(Me.ListIndex) IsA TestResult, TestResult(Me.RowTag(Me.ListIndex)), Nil)
+		    
 		    base.Append(New MenuItem(MenuItem.TextSeparator))
 		    
 		    base.Append(New MenuItem(kCMSelectAllTests, tg))
@@ -1481,6 +1570,12 @@ End
 		    base.Append(New MenuItem(kCMUnselectAllTests, tg))
 		    
 		    base.Append(New MenuItem(MenuItem.TextSeparator))
+		    
+		    If tr IsA TestResult Then
+		      base.Append(New MenuItem(kCMSelectOneTest, tg : tr))
+		      
+		      base.Append(New MenuItem(MenuItem.TextSeparator))
+		    End If
 		    
 		    base.Append(New MenuItem(kCMSelectThisGroup, tg))
 		    base.Append(New MenuItem(kCMUnselectThisGroup, tg))
@@ -1516,6 +1611,11 @@ End
 		Sub Action(item As ToolItem)
 		  Select Case item
 		  Case TestToolbar1.RunButton
+		    RunUntilFail = False
+		    RunTests
+		    
+		  Case TestToolbar1.RunUntilFailButton
+		    RunUntilFail = True
 		    RunTests
 		    
 		  Case TestToolbar1.StopButton
