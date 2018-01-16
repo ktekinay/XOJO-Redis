@@ -1,12 +1,6 @@
 #tag Class
 Protected Class RedisPipelineBenchmarks
 Inherits TestGroup
-	#tag Method, Flags = &h0
-		Sub SetTest()
-		  SetTestBase kPipelines, kReps
-		End Sub
-	#tag EndMethod
-
 	#tag Method, Flags = &h21
 		Private Sub SetTestBase(pipelines As Integer, reps As Integer)
 		  #if not DebugBuild then
@@ -65,8 +59,20 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Sub SetWith1Test()
+		Sub SetWith01Test()
 		  SetTestBase 1, kReps / 5
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub SetWith10Test()
+		  SetTestBase kPipelines, kReps
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub SetWith30Test()
+		  SetTestBase 30, kReps
 		End Sub
 	#tag EndMethod
 
