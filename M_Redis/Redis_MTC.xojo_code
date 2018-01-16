@@ -510,33 +510,13 @@ Class Redis_MTC
 		    return nil
 		    
 		  elseif parameters is nil or parameters.Ubound = -1 then
-		    return MaybeSend( command.Trim, nil )
+		    return MaybeSend( command, nil )
 		    
 		  else
-		    'dim allParams() as string
-		    '
-		    'dim ub as integer = if( parameters is nil, -1, ( parameters.Ubound + 1 ) * 2 - 1 ) + 2
-		    'redim allParams( ub )
-		    '
-		    'dim trimmedCommand as string = command.Trim
-		    'allParams( 0 ) = "$" + str( trimmedCommand.LenB )
-		    'allParams( 1 ) = trimmedCommand
-		    '
-		    'if ub <> 1 then
-		    'for i as integer = 0 to parameters.Ubound
-		    'dim allIndex as integer = ( i * 2 ) + 2
-		    'dim p as string = parameters( i )
-		    'allParams( allIndex ) = "$" + str( p.LenB )
-		    'allParams( allIndex + 1 ) = p
-		    'next
-		    'end if
-		    '
-		    'return MaybeSend( "", allParams )
-		    
 		    dim commandParts() as string
 		    redim commandParts( parameters.Ubound + 1 )
 		    
-		    commandParts( 0 ) = command.Trim
+		    commandParts( 0 ) = command
 		    for i as integer = 0 to parameters.Ubound
 		      commandParts( i + 1 ) = parameters( i )
 		    next
@@ -1544,17 +1524,34 @@ Class Redis_MTC
 		    dim cmd as string
 		    dim isPipeline as boolean = PipelineCount > 0
 		    
-		    if IsFlushingPipeline or formattedCommand <> "" then
-		      cmd = formattedCommand
+		    if not IsFlushingPipeline then
+		      RequestCount = RequestCount + 1
+		    end if
+		    
+		    if IsFlushingPipeline then
+		      //
+		      // No commands issued
+		      //
+		      
+		    elseif formattedCommand <> "" then
+		      if isPipeline then
+		        PipelineQueue.Append formattedCommand
+		        PipelineCommandCount = PipelineCommandCount + 1
+		      else
+		        cmd = formattedCommand
+		      end if
 		      
 		    else
+		      dim arr() as string = PipelineQueue
+		      dim arrIndex as integer = arr.Ubound
+		      
 		      dim redisUb as integer = commandParts.Ubound + 1
-		      dim arrUb as integer = redisUb * 2
-		      dim arr() as string
+		      dim arrUb as integer = ( redisUb * 2 ) + arrIndex + 1
 		      redim arr( arrUb )
 		      
-		      arr( 0 ) = if( redisUb > arrayCounts.Ubound, "*" + str( redisUb ), arrayCounts( redisUb ) )
-		      dim arrIndex as integer = 0
+		      arrIndex = arrIndex + 1
+		      arr( arrIndex ) = if( redisUb > arrayCounts.Ubound, "*" + str( redisUb ), arrayCounts( redisUb ) )
+		      
 		      for i as integer = 0 to commandParts.Ubound
 		        dim p as string = commandParts( i )
 		        dim pLen as integer = p.LenB
@@ -1565,28 +1562,22 @@ Class Redis_MTC
 		        arr( arrIndex ) = p
 		      next
 		      
-		      cmd = join( arr, eol )
+		      PipelineCommandCount = PipelineCommandCount + 1
+		    end if
+		    
+		    if cmd = "" and PipelineQueue.Ubound <> -1 and _
+		      ( IsFlushingPipeline or not isPipeline or PipelineCommandCount = PipelineCount ) then
+		      cmd = join( PipelineQueue, eol )
+		      redim PipelineQueue( -1 )
+		      PipelineCommandCount = 0
 		    end if
 		    
 		    if cmd <> "" then
 		      zLastCommand = cmd
-		      RequestCount = RequestCount + 1
-		      
-		      if isPipeline then
-		        PipelineQueue.Append cmd
-		        cmd = ""
-		      end if
-		    end if
-		    
-		    if cmd = "" and PipelineQueue.Ubound <> -1 and ( _
-		      IsFlushingPipeline or _
-		      ( isPipeLine and ( PipelineQueue.Ubound + 1 ) = PipelineCount ) _
-		      ) then
-		      cmd = join( PipelineQueue, eol )
-		      redim PipelineQueue( -1 )
-		    end if
-		    
-		    if cmd <> "" then
+		      #if DebugBuild then
+		        dim cmdLen as integer = cmd.LenB
+		        #pragma unused cmdLen
+		      #endif
 		      Socket.Write cmd + eol
 		      Socket.Flush
 		    end if
@@ -2931,6 +2922,10 @@ Class Redis_MTC
 
 	#tag Property, Flags = &h21
 		Private PipelineCheckTimer As Timer
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private PipelineCommandCount As Integer
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
