@@ -601,6 +601,26 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub LastCommandTest()
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
+		  
+		  dim eol as string = EndOfLine.Windows
+		  
+		  Assert.IsTrue r.Set( "xut:key", "xxx" )
+		  dim expected as string = "*3" + eol + "$3" + eol + "SET" + eol + "$7" + eol + "xut:key" + eol + "$3" + eol + "xxx"
+		  Assert.AreSame expected, r.LastCommand
+		  
+		  dim msg as string = "hi"
+		  dim cmd as string = "ECHO " + msg
+		  Assert.AreSame msg, r.Execute( cmd )
+		  Assert.AreSame cmd, r.LastCommand
+		  
+		  r.Delete "xut:key"
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub ListFunctionsTest()
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  

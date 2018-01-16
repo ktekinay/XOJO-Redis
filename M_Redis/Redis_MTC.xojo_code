@@ -2901,7 +2901,8 @@ Class Redis_MTC
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
-			  return zLastCommand
+			  return zLastCommand.LeftB( zLastCommand.LenB - 2 ) // Remove the trailing EOL
+			  
 			  
 			End Get
 		#tag EndGetter
