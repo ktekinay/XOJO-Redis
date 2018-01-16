@@ -16,7 +16,7 @@ Begin Window WndRedisSettings
    MaxHeight       =   32000
    MaximizeButton  =   False
    MaxWidth        =   32000
-   MenuBar         =   0
+   MenuBar         =   1620596735
    MenuBarVisible  =   True
    MinHeight       =   64
    MinimizeButton  =   True
