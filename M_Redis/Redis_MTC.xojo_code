@@ -1535,10 +1535,12 @@ Class Redis_MTC
 		      
 		    elseif formattedCommand <> "" then
 		      if isPipeline then
-		        PipelineQueue.Append formattedCommand
+		        dim arrIndex as integer = PipelineQueue.Ubound + 1
+		        redim PipelineQueue( PipelineQueue.Ubound + 2 ) // For trailing eol
+		        PipelineQueue( arrIndex ) = formattedCommand
 		        PipelineCommandCount = PipelineCommandCount + 1
 		      else
-		        cmd = formattedCommand
+		        cmd = formattedCommand + eol
 		      end if
 		      
 		    else
@@ -1546,7 +1548,7 @@ Class Redis_MTC
 		      dim arrIndex as integer = arr.Ubound
 		      
 		      dim redisUb as integer = commandParts.Ubound + 1
-		      dim arrUb as integer = ( redisUb * 2 ) + arrIndex + 1
+		      dim arrUb as integer = ( redisUb * 2 ) + arrIndex + 2 // Allow for trailing eol
 		      redim arr( arrUb )
 		      
 		      arrIndex = arrIndex + 1
@@ -1578,7 +1580,7 @@ Class Redis_MTC
 		        dim cmdLen as integer = cmd.LenB
 		        #pragma unused cmdLen
 		      #endif
-		      Socket.Write cmd + eol
+		      Socket.Write cmd // Either way, it will already have the trailing eol
 		      Socket.Flush
 		    end if
 		    
