@@ -257,6 +257,14 @@ Begin Window WndRedisSettings
       Visible         =   True
       Width           =   289
    End
+   Begin Timer TmrOpen
+      Index           =   -2147483648
+      LockedInPosition=   False
+      Mode            =   1
+      Period          =   100
+      Scope           =   2
+      TabPanelIndex   =   0
+   End
 End
 #tag EndWindow
 
@@ -304,6 +312,14 @@ End
 		      App.RedisPort = Redis_MTC.kDefaultPort
 		    end if
 		  end if
+		  
+		End Sub
+	#tag EndEvent
+#tag EndEvents
+#tag Events TmrOpen
+	#tag Event
+		Sub Action()
+		  XojoUnitTestWindow.Show
 		  
 		End Sub
 	#tag EndEvent
