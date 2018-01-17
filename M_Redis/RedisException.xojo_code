@@ -1,5 +1,6 @@
 #tag Class
-Private Class RedisError
+Protected Class RedisException
+Inherits RuntimeException
 	#tag Method, Flags = &h0
 		Sub Constructor(msg As String)
 		  Message = msg
@@ -8,12 +9,13 @@ Private Class RedisError
 	#tag EndMethod
 
 
-	#tag Property, Flags = &h0
-		Message As String
-	#tag EndProperty
-
-
 	#tag ViewBehavior
+		#tag ViewProperty
+			Name="ErrorNumber"
+			Group="Behavior"
+			InitialValue="0"
+			Type="Integer"
+		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Index"
 			Visible=true
@@ -29,10 +31,21 @@ Private Class RedisError
 			Type="Integer"
 		#tag EndViewProperty
 		#tag ViewProperty
+			Name="Message"
+			Group="Behavior"
+			Type="String"
+			EditorType="MultiLineEditor"
+		#tag EndViewProperty
+		#tag ViewProperty
 			Name="Name"
 			Visible=true
 			Group="ID"
 			Type="String"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="Reason"
+			Group="Behavior"
+			Type="Text"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Super"

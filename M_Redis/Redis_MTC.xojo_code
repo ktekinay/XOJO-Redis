@@ -1181,7 +1181,7 @@ Class Redis_MTC
 		      end if
 		      
 		    case "-" // Error
-		      r = new RedisError( firstLine )
+		      r = new RedisException( firstLine )
 		      
 		    case "$" // Bulk string
 		      if firstLine = "-1" then
