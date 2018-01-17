@@ -96,6 +96,22 @@ Protected Module M_Redis
 	#tag EndMethod
 
 	#tag Method, Flags = &h1
+		Protected Function VariantToSortedSetItemArray(varr() As Variant) As M_Redis.SortedSetItem()
+		  dim r() as M_Redis.SortedSetItem
+		  
+		  for i as integer = 0 to varr.Ubound step 2
+		    dim member as string = varr( i ).StringValue
+		    dim score as double = varr( i + 1 ).DoubleValue
+		    dim item as new M_Redis.SortedSetItem( score, member )
+		    r.Append item
+		  next
+		  
+		  return r
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h1
 		Protected Function VariantToStringArray(varr() As Variant) As String()
 		  dim arr() as string
 		  redim arr( varr.Ubound )

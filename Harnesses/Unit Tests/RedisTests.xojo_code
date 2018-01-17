@@ -514,6 +514,30 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub HyperLogLogTest()
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
+		  
+		  Assert.IsTrue r.PFAdd( "xut:key", split( "abcdefg", "" ) )
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
+		  
+		  Assert.IsTrue r.PFAdd( "xut:key1", "foo", "bar", "zap" )
+		  Assert.IsTrue r.PFAdd( "xut:key2", "1", "2", "foo" )
+		  Assert.AreEqual 5, r.PFCount( "xut:key1", "xut:key2" )
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
+		  
+		  Assert.IsTrue r.PFAdd( "xut:key1", "foo", "bar", "zap", "a" )
+		  Assert.IsTrue r.PFAdd( "xut:key2", "a", "b", "c", "foo" )
+		  Assert.IsTrue r.PFMergeTo( "xut:dest", "xut:key1", "xut:key2" )
+		  Assert.AreEqual 6, r.PFCount( "xut:dest" )
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub IncrementByFloatTest()
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
@@ -886,7 +910,7 @@ Inherits TestGroup
 		    call r.GetMultiple( keys )
 		  next
 		  
-		  arr = r.FlushPipeline( false )
+		  arr = r.FlushPipeline( true )
 		  
 		  Assert.AreEqual CType( ( kUB ) / 4, Int32 ), arr.Ubound
 		  
@@ -899,6 +923,9 @@ Inherits TestGroup
 		      Assert.AreEqual "xxx", subArr( x ).StringValue, subArr( x ).StringValue.ToText
 		    next
 		  next
+		  
+		  arr = r.FlushPipeline( false ) // Turn off the pipeline
+		  Assert.AreEqual -1, CType( arr.Ubound, integer )
 		  
 		  call r.Delete( r.Scan( "xut:*" ) )
 		  
@@ -1276,6 +1303,146 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub SortedSetTest()
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
+		  dim withScores() as M_Redis.SortedSetItem
+		  //
+		  // ZADD
+		  //
+		  Assert.AreEqual 1, r.ZAdd( "xut:set", Redis_MTC.SetMode.Always, false, 1 : "member" )
+		  Assert.AreEqual 1, r.ZAdd( "xut:set", Redis_MTC.SetMode.IfNotExists, false, new M_Redis.SortedSetItem( 2, "member2" ) )
+		  Assert.AreEqual 0, r.ZAdd( "xut:set", Redis_MTC.SetMode.Always, false, 3 : "member", 4 : "member2" )
+		  Assert.AreEqual 2, r.ZAdd( "xut:set", Redis_MTC.SetMode.Always, true, 6 : "member", 7 : "member2" )
+		  
+		  //
+		  // ZCARD
+		  //
+		  Assert.AreEqual 2, r.ZCard( "xut:set" )
+		  
+		  //
+		  // ZCOUNT
+		  //
+		  Assert.AreEqual 0, r.ZCount( "xut:set", 6, 7, true, true )
+		  Assert.AreEqual 1, r.ZCount( "xut:set", 6, 7, true, false )
+		  Assert.AreEqual 1, r.ZCount( "xut:set", 6, 7, false, true )
+		  Assert.AreEqual 2, r.ZCount( "xut:set", 6, 7 )
+		  
+		  //
+		  // ZINCRBY
+		  //
+		  Assert.AreEqual 8.5, r.ZIncrementBy( "xut:set", 1.5, "member2" )
+		  
+		  //
+		  // ZINTERSTORE
+		  //
+		  Assert.AreEqual 2, r.ZAdd( "xut:set1", Redis_MTC.SetMode.Always, false, 1 : "one", 2 : "two" )
+		  Assert.AreEqual 3, r.ZAdd( "xut:set2", Redis_MTC.SetMode.Always, false, 1 : "one", 2 : "two", 3 : "three" )
+		  Assert.AreEqual 2, _
+		  r.ZIntersectionTo( "xut:dest", array( "xut:set1", "xut:set2" ), Redis_MTC.Aggregate.Sum, array( 2.0, 3.0 ) ), _
+		  "ZINTERSTORE"
+		  withScores = r.ZRangeWithScores( "xut:dest", 0, -1 )
+		  Assert.AreEqual "two", withScores( 1 ).Member
+		  Assert.AreEqual 10.0, withScores( 1 ).Score
+		  call r.Delete( "xut:set1", "xut:set2", "xut:dest" )
+		  
+		  //
+		  // ZLEXCOUNT
+		  //
+		  Assert.AreEqual 1, r.ZLexCount( "xut:set", "[member", "[member" )
+		  Assert.AreEqual 1, r.ZAdd( "xut:set", Redis_MTC.SetMode.Always, false, 6 : "member1" )
+		  Assert.AreEqual 2, r.ZLexCount( "xut:set", "[member", "(member2" )
+		  
+		  //
+		  // ZRANGE
+		  //
+		  dim members() as string = r.ZRange( "xut:set", 0, -1 )
+		  Assert.AreEqual 2, CType( members.Ubound, integer )
+		  Assert.AreEqual "member", members( 0 )
+		  
+		  members = r.ZRange( "xut:set", 0, -1, true )
+		  Assert.AreEqual "member2", members( 0 )
+		  
+		  withScores = r.ZRangeWithScores( "xut:set", 0, -1 )
+		  Assert.AreEqual 2, CType( withScores.Ubound, integer )
+		  
+		  //
+		  // ZRANGEBYLEX
+		  //
+		  members = r.ZRangeByLex( "xut:set", "[member", "(member2" )
+		  Assert.AreEqual 1, CType( members.Ubound, integer )
+		  members = r.ZRangeByLex( "xut:set", "[member", "(member2", false, 0, 1 )
+		  Assert.AreEqual 0, CType( members.Ubound, integer ), "ZRANGEBYLEX limit 1"
+		  members = r.ZRangeByLex( "xut:set", "[member", "-", true )
+		  Assert.AreEqual 0, CType( members.Ubound, integer ), "ZRANGEBYLEX reverse"
+		  
+		  //
+		  // ZRANGEBYSCORE
+		  //
+		  members = r.ZRangeByScore( "xut:set", 0, 10, false, false, false, 0, 10 )
+		  Assert.AreEqual 2, CType( members.Ubound, integer )
+		  
+		  withScores = r.ZRangeByScoreWithScores( "xut:set", 0, 10, true, false, false, 0, 10 )
+		  Assert.AreEqual 2, CType( members.Ubound, integer )
+		  
+		  //
+		  // ZRANK
+		  //
+		  Assert.AreEqual 0, r.ZRank( "xut:set", "member" ), "ZRANK"
+		  Assert.AreEqual 2, r.ZRank( "xut:set", "member", true ), "ZREVRANK"
+		  
+		  //
+		  // ZREM
+		  //
+		  Assert.AreEqual 1, r.ZRemove( "xut:set", "member1" )
+		  
+		  //
+		  // ZREMRANGEBYLEX
+		  //
+		  Assert.AreEqual 2, r.ZAdd( "xut:set", Redis_MTC.SetMode.Always, false, 1 : "deleteme1", 2 : "deleteme2" )
+		  Assert.AreEqual 2, r.ZRemoveRangeByLex( "xut:set", "[de", "(e" )
+		  
+		  //
+		  // ZREMRANGEBYRANK
+		  //
+		  Assert.AreEqual 2, r.ZAdd( "xut:set", Redis_MTC.SetMode.Always, false, 1 : "deleteme1", 2 : "deleteme2" )
+		  Assert.AreEqual 2, r.ZRemoveRangeByRank( "xut:set", 0, 1 ), "ZREMRANGEBYRANK"
+		  
+		  //
+		  // ZREMRANGEBYSCORE
+		  //
+		  Assert.AreEqual 2, r.ZAdd( "xut:set", Redis_MTC.SetMode.Always, false, 0.1 : "deleteme1", 0.2 : "deleteme2" )
+		  Assert.AreEqual 2, r.ZRemoveRangeByScore( "xut:set", 0.1, 1, false, true )
+		  
+		  //
+		  // ZSCAN
+		  //
+		  dim found() as M_Redis.SortedSetItem = r.ZScan( "xut:set", "*2" )
+		  Assert.AreEqual 0, CType( found.Ubound, integer )
+		  
+		  //
+		  // ZSCORE
+		  //
+		  Assert.AreEqual 8.5, r.ZScore( "xut:set", "member2" )
+		  
+		  //
+		  // ZUNIONSTORE
+		  //
+		  Assert.AreEqual 2, r.ZAdd( "xut:set1", Redis_MTC.SetMode.Always, false, 1 : "one", 2 : "two" )
+		  Assert.AreEqual 3, r.ZAdd( "xut:set2", Redis_MTC.SetMode.Always, false, 1 : "one", 2 : "two", 3 : "three" )
+		  Assert.AreEqual 3, _
+		  r.ZUnionTo( "xut:dest", array( "xut:set1", "xut:set2" ), Redis_MTC.Aggregate.Sum, array( 2.0, 3.0 ) ), _
+		  "ZUNIONTO"
+		  withScores = r.ZRangeWithScores( "xut:dest", 0, -1 )
+		  Assert.AreEqual "two", withScores( 2 ).Member
+		  Assert.AreEqual 10.0, withScores( 2 ).Score
+		  call r.Delete( "xut:set1", "xut:set2", "xut:dest" )
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub SortTest()
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
@@ -1479,6 +1646,60 @@ Inherits TestGroup
 		  #pragma BreakOnExceptions default
 		  
 		  call r.Delete( "xut:key1", "xut:key2" )
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub TransactionTest()
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
+		  
+		  if true then
+		    Assert.IsTrue r.Set( "xut:key", "1" )
+		    r.Watch( "xut:key" )
+		    dim val as integer = r.Get( "xut:key" ).Val
+		    r.Mutli
+		    call r.Set( "xut:key", str( val + 1 ) )
+		    dim result() as variant = r.Exec
+		    Assert.AreEqual 0, CType( result.Ubound, integer )
+		    Assert.IsTrue result( 0 )
+		    
+		    r.Delete "xut:key"
+		  end if
+		  
+		  if true then
+		    Assert.IsTrue r.Set( "xut:key", "1" )
+		    r.Watch "xut:key"
+		    r.Unwatch 
+		    dim val as integer = r.Get( "xut:key" ).Val
+		    r.Mutli
+		    call r.Set( "xut:key", str( val + 1 ) )
+		    r.Discard
+		    
+		    r.Delete "xut:key"
+		  end if
+		  
+		  if true then
+		    dim r2 as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
+		    
+		    Assert.IsTrue r.Set( "xut:key", "1" )
+		    r.Watch( "xut:key" )
+		    Assert.IsTrue r2.Set( "xut:key", "10" )
+		    r.Mutli
+		    
+		    #pragma BreakOnExceptions false
+		    try
+		      call r.Exec
+		      Assert.Fail "Transaction should have aborted"
+		    catch err as M_Redis.RedisException
+		      Assert.Pass
+		    end try
+		    #pragma BreakOnExceptions default
+		    
+		    r.Delete "xut:key"
+		  end if
+		  
+		  call r.Delete( r.Scan( "xut:*" ) )
+		  
 		End Sub
 	#tag EndMethod
 

@@ -469,6 +469,13 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub Discard()
+		  call MaybeSend( "DISCARD", nil )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub Disconnect()
 		  if Socket.IsConnected then
 		    if IsPipeline then
@@ -499,8 +506,21 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function Execute(command As String, ParamArray parameters() As String) As Variant
-		  return Execute( command, parameters )
+		Function Exec() As Variant()
+		  dim r as variant = MaybeSend( "EXEC", nil )
+		  
+		  dim arr() as variant
+		  if IsPipeline then
+		    //
+		    // Do nothing
+		    //
+		  elseif r.IsNull then
+		    raise new RedisException( "Transaction aborted" )
+		  else
+		    arr = r
+		  end if
+		  
+		  return arr
 		End Function
 	#tag EndMethod
 
@@ -524,6 +544,12 @@ Class Redis_MTC
 		    return MaybeSend( "", commandParts )
 		    
 		  end if
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function Execute(command As String, ParamArray parameters() As String) As Variant
+		  return Execute( command, parameters )
 		End Function
 	#tag EndMethod
 
@@ -1174,7 +1200,7 @@ Class Redis_MTC
 		      r = i
 		      
 		    case "+" // Simple string
-		      if firstLine = "OK" then
+		      if firstLine = "OK" or firstLine = "QUEUED" then
 		        r = true
 		      else
 		        r = firstLine
@@ -1590,8 +1616,8 @@ Class Redis_MTC
 		    else
 		      r = GetResponse
 		      
-		      if r.Type = Variant.TypeObject and r isa RedisError then
-		        RaiseException 0, RedisError( r ).Message
+		      if r.Type = Variant.TypeObject and r isa RedisException then
+		        raise RedisException( r )
 		      end if
 		      
 		    end if
@@ -1620,6 +1646,13 @@ Class Redis_MTC
 		  end if
 		  
 		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub Mutli()
+		  call MaybeSend( "MULTI", nil )
+		  
+		End Sub
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -1654,6 +1687,98 @@ Class Redis_MTC
 		  call MaybeSend( "", array( "PERSIST", key ) )
 		  
 		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function PFAdd(key As String, elements() As String) As Boolean
+		  dim params() as string = array( "PFADD", key )
+		  for i as integer = 0 to elements.Ubound
+		    params.Append elements( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return true
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue = 1
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function PFAdd(key As String, ParamArray elements() As String) As Boolean
+		  return PFAdd( key, elements )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function PFCount(keys() As String) As Integer
+		  dim params() as string
+		  redim params( keys.Ubound + 1 )
+		  params( 0 ) = "PFCOUNT"
+		  for i as integer = 0 to keys.Ubound
+		    params( i + 1 ) = keys( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return -3
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function PFCount(key As String, ParamArray moreKeys() As String) As Integer
+		  dim allKeys() as string
+		  redim allKeys( moreKeys.Ubound + 1 )
+		  allKeys( 0 ) = key
+		  for i as integer = 0 to moreKeys.Ubound
+		    allKeys( i + 1 ) = moreKeys( i )
+		  next
+		  
+		  return PFCount( allKeys )
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function PFMergeTo(dest As String, keys() As String) As Boolean
+		  dim params() as string
+		  redim params( keys.Ubound + 2 )
+		  params( 0 ) = "PFMERGE"
+		  params( 1 ) = dest
+		  for i as integer = 0 to keys.Ubound
+		    params( i + 2 ) = keys( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return true
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.BooleanValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function PFMergeTo(dest As String, ParamArray keys() As String) As Boolean
+		  return PFMergeTo( dest, keys )
+		  
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -2208,6 +2333,12 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub SetMultiple(ParamArray keyValue() As Pair)
+		  SetMultiple keyValue
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub SetMultiple(keyValue() As Pair)
 		  dim parts() as string
 		  
@@ -2222,9 +2353,9 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Sub SetMultiple(ParamArray keyValue() As Pair)
-		  SetMultiple keyValue
-		End Sub
+		Function SetMultipleIfNoneExist(ParamArray keyValue() As Pair) As Boolean
+		  return SetMultipleIfNoneExist( keyValue )
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -2244,12 +2375,6 @@ Class Redis_MTC
 		  else
 		    return v.IntegerValue <> 0
 		  end if
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
-		Function SetMultipleIfNoneExist(ParamArray keyValue() As Pair) As Boolean
-		  return SetMultipleIfNoneExist( keyValue )
 		End Function
 	#tag EndMethod
 
@@ -2788,6 +2913,512 @@ Class Redis_MTC
 		End Function
 	#tag EndMethod
 
+	#tag Method, Flags = &h0
+		Sub Unwatch()
+		  call MaybeSend( "UNWATCH", nil )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub Watch(keys() As String)
+		  dim params() as string
+		  redim params( keys.Ubound + 1 )
+		  params( 0 ) = "WATCH"
+		  for i as integer = 0 to keys.Ubound
+		    params( i + 1 ) = keys( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    //
+		    // Do nothing
+		    //
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  end if
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub Watch(key As String, ParamArray moreKeys() As String)
+		  dim allKeys() as string
+		  redim allKeys( moreKeys.Ubound + 1 )
+		  allKeys( 0 ) = key
+		  for i as integer = 0 to moreKeys.Ubound
+		    allKeys( i + 1 ) = moreKeys( i )
+		  next
+		  
+		  Watch( allKeys )
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZAdd(key As String, mode As SetMode, returnChanged As Boolean, items() As M_Redis.SortedSetItem) As Integer
+		  dim params() as string = array( "ZADD", key )
+		  
+		  if mode <> SetMode.Always then
+		    select case mode
+		    case SetMode.IfExists
+		      params.Append "XX"
+		    case SetMode.IfNotExists
+		      params.Append "NX"
+		    end select
+		  end if
+		  
+		  if returnChanged then
+		    params.Append "CH"
+		  end if
+		  
+		  for i as integer = 0 to items.Ubound
+		    dim item as M_Redis.SortedSetItem = items( i )
+		    params.Append str( item.Score )
+		    params.Append item.Member
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZAdd(key As String, mode As SetMode, returnChanged As Boolean, item As M_Redis.SortedSetItem, ParamArray moreItems() As M_Redis.SortedSetItem) As Integer
+		  dim allItems() as M_Redis.SortedSetItem
+		  redim allItems( moreItems.Ubound + 1 )
+		  allItems( 0 ) = item
+		  for i as integer = 0 to moreItems.Ubound
+		    allItems( i + 1 ) = moreItems( i )
+		  next
+		  
+		  return ZAdd( key, mode, returnChanged, allItems )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Function ZAggregate(cmd As String, dest As String, keys() As String, agg As Aggregate, weights() As Double) As Integer
+		  dim params() as string = array( cmd, dest, str( keys.Ubound + 1 ) )
+		  
+		  for i as integer = 0 to keys.Ubound
+		    params.Append keys( i )
+		  next
+		  
+		  if weights <> nil and weights.Ubound <> -1 then
+		    params.Append "WEIGHTS"
+		    for i as integer = 0 to weights.Ubound
+		      params.Append str( weights( i ) )
+		    next
+		  end if
+		  
+		  if agg <> Aggregate.Sum then
+		    params.Append "AGGREGATE"
+		    select case agg
+		    case Aggregate.Min
+		      params.Append "MIN"
+		    case Aggregate.Max
+		      params.Append "MAX"
+		    end select
+		  end if
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return -3
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZCard(key As String) As Integer
+		  dim r as variant = MaybeSend( "", array( "ZCARD", key ) )
+		  
+		  if IsPipeline then
+		    return -1
+		  elseif r.IntegerValue = 0 then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZCount(key As String, min As Double, max As Double, minIsExclusive As Boolean = False, maxIsExclusive As Boolean = False) As Integer
+		  dim params() as string = array( _
+		  "ZCOUNT", _
+		  key, _
+		  if( minIsExclusive, kRangeExclusive, "") + str( min ), _
+		  if( maxIsExclusive, kRangeExclusive, "" ) + str( max ) _
+		  )
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return -3
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZIncrementBy(key As String, increment As Double, member As String) As Double
+		  dim r as variant = MaybeSend( "", array( "ZINCRBY", key, str( increment ), member ) )
+		  
+		  if IsPipeline then
+		    return 0.0
+		  else
+		    return r.DoubleValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZIntersectionTo(dest As String, keys() As String, agg As Aggregate = Aggregate.Sum, weights() As Double = Nil) As Integer
+		  return ZAggregate( "ZINTERSTORE", dest, keys, agg, weights )
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZLexCount(key As String, min As String = kNegativeInf, max As String = kPositiveInf) As Integer
+		  dim params() as string = array( "ZLEXCOUNT", key, min, max )
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return -1
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZRange(key As String, start As Integer, stop As Integer, reverse As Boolean = False) As String()
+		  dim cmd as string = if( reverse, "ZREVRANGE", "ZRANGE" )
+		  dim r as variant = MaybeSend( "", array( cmd, key, str( start ), str( stop ) ) )
+		  
+		  dim arr() as string
+		  if IsPipeline then
+		    //
+		    // Do nothing
+		    //
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    arr = M_Redis.VariantToStringArray( r )
+		  end if
+		  
+		  return arr
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZRangeByLex(key As String, min As String = kNegativeInf, max As String = kPositiveInf, reverse As Boolean = False, offset As Integer = 0, count As Integer = -1) As String()
+		  dim cmd as string = if( reverse, "ZREVRANGEBYLEX", "ZRANGEBYLEX" )
+		  dim params() as string = array( cmd, key, min, max )
+		  
+		  if offset <> 0 or count <> -1 then
+		    params.Append "LIMIT"
+		    params.Append str( offset )
+		    params.Append str( count )
+		  end if
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  dim arr() as string
+		  if IsPipeline then
+		    //
+		    // Do nothing
+		    //
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    arr = M_Redis.VariantToStringArray( r )
+		  end if
+		  
+		  return arr
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZRangeByScore(key As String, min As Double, max As Double, reverse As Boolean = False, minIsExclusive As Boolean = False, maxIsExclusive As Boolean = False, offset As Integer = 0, count As Integer = -1) As String()
+		  dim cmd as string = if( reverse, "ZREVRANGEBYSCORE", "ZRANGEBYSCORE" )
+		  dim params() as string = array( _
+		  cmd, _
+		  key, _
+		  if( minIsExclusive, kRangeExclusive, "" ) + str( min ), _
+		  if( maxIsExclusive, kRangeExclusive, "" ) + str( max ) _
+		  )
+		  
+		  if offset <> 0 or count <> -1 then
+		    params.Append "LIMIT"
+		    params.Append str( offset )
+		    params.Append str( count )
+		  end if
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  dim arr() as string
+		  if IsPipeline then
+		    //
+		    // Do nothing
+		    //
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    arr = M_Redis.VariantToStringArray( r )
+		  end if
+		  
+		  return arr
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZRangeByScoreWithScores(key As String, min As Double, max As Double, reverse As Boolean = False, minIsExclusive As Boolean = False, maxIsExclusive As Boolean = False, offset As Integer = 0, count As Integer = -1) As M_Redis.SortedSetItem()
+		  dim cmd as string = if( reverse, "ZREVRANGEBYSCORE", "ZRANGEBYSCORE" )
+		  dim params() as string = array( _
+		  cmd, _
+		  key, _
+		  if( minIsExclusive, kRangeExclusive, "" ) + str( min ), _
+		  if( maxIsExclusive, kRangeExclusive, "" ) + str( max ), _
+		  "WITHSCORES" _
+		  )
+		  
+		  if offset <> 0 or count <> -1 then
+		    params.Append "LIMIT"
+		    params.Append str( offset )
+		    params.Append str( count )
+		  end if
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  dim arr() as M_Redis.SortedSetItem
+		  if IsPipeline then
+		    //
+		    // Do nothing
+		    //
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    arr = M_Redis.VariantToSortedSetItemArray( r )
+		  end if
+		  
+		  return arr
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZRangeWithScores(key As String, start As Integer, stop As Integer, reverse As Boolean = False) As M_Redis.SortedSetItem()
+		  dim cmd as string = if( reverse, "ZREVRANGE", "ZRANGE" )
+		  dim r as variant = MaybeSend( "", array( cmd, key, str( start ), str( stop ), "WITHSCORES" ) )
+		  
+		  dim arr() as M_Redis.SortedSetItem
+		  if IsPipeline then
+		    //
+		    // Do nothing
+		    //
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    arr = M_Redis.VariantToSortedSetItemArray( r )
+		  end if
+		  
+		  return arr
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZRank(key As String, member As String, reverse As Boolean = False) As Integer
+		  dim cmd as string = if( reverse, "ZREVRANK", "ZRANK" )
+		  dim r as variant = MaybeSend( "", array( cmd, key, member ) )
+		  
+		  if IsPipeline then
+		    return -3
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZRemove(key As String, members() As String) As Integer
+		  dim params() as string
+		  redim params( members.Ubound + 2 )
+		  params( 0 ) = "ZREM"
+		  params( 1 ) = key
+		  for i as integer = 0 to members.Ubound
+		    params( i + 2 ) = members( i )
+		  next
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return -3
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZRemove(key As String, member As String, ParamArray moreMembers() As String) As Integer
+		  dim allMembers() as string
+		  redim allMembers( moreMembers.Ubound + 1 )
+		  allMembers( 0 ) = member
+		  for i as integer = 0 to moreMembers.Ubound
+		    allMembers( i + 1 ) = moreMembers( i )
+		  next
+		  
+		  return ZRemove( key, allMembers )
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZRemoveRangeByLex(key As String, min As String, max As String) As Integer
+		  dim r as variant = MaybeSend( "", array( "ZREMRANGEBYLEX", key, min, max ) )
+		  
+		  if IsPipeline then
+		    return -3
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZRemoveRangeByRank(key As String, start As Integer, stop As Integer) As Integer
+		  dim r as variant = MaybeSend( "", array( "ZREMRANGEBYRANK", key, str( start ), str( stop ) ) )
+		  
+		  If IsPipeline then
+		    return -3
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZRemoveRangeByScore(key As String, min As Double, max As Double, minIsExclusive As Boolean = False, maxIsExclusive As Boolean = False) As Integer
+		  dim params() as string = array( _
+		  "ZREMRANGEBYSCORE", _
+		  key, _
+		  if( minIsExclusive, kRangeExclusive, "" ) + str( min ), _
+		  if( maxIsExclusive, kRangeExclusive, "" ) + str( max ) _
+		  )
+		  
+		  dim r as variant = MaybeSend( "", params )
+		  
+		  if IsPipeline then
+		    return -3
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.IntegerValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZScan(key As String, pattern As String = "*") As M_Redis.SortedSetItem()
+		  if IsPipeline then
+		    RaiseException 0, "ZSCAN is not available within a Pipeline"
+		  end if
+		  
+		  dim parts() as string = array( "ZSCAN", key, "", "COUNT", "20" )
+		  if pattern <> "" then
+		    parts.Append "MATCH"
+		    parts.Append pattern
+		  end if
+		  
+		  dim r() as M_Redis.SortedSetItem
+		  dim cursor as string = "0"
+		  
+		  dim allMembers as new Dictionary
+		  
+		  do
+		    parts( 2 ) = cursor
+		    dim result as variant = MaybeSend( "", parts )
+		    if result.IsNull then
+		      raise new KeyNotFoundException
+		    end if
+		    dim arr() as variant = result
+		    if arr( 1 ).IsNull then
+		      raise new KeyNotFoundException
+		    end if
+		    
+		    cursor = arr( 0 ).StringValue
+		    dim members() as variant = arr( 1 )
+		    for i as integer = 0 to members.Ubound step 2
+		      dim member as string = members( i ).StringValue
+		      dim score as string = members( i + 1 ).StringValue
+		      dim allMembersKey as string = member + score
+		      
+		      if not allMembers.HasKey( allMembersKey ) then
+		        r.Append new M_Redis.SortedSetItem( score.Val, member )
+		        allMembers.Value( key ) = nil
+		      end if
+		    next
+		  loop until cursor = "0"
+		  
+		  return r
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZScore(key As String, member As String) As Double
+		  dim r as variant = MaybeSend( "", array( "ZSCORE", key, member ) )
+		  
+		  if IsPipeline then
+		    return 0.0
+		  elseif r.IsNull then
+		    raise new KeyNotFoundException
+		  else
+		    return r.DoubleValue
+		  end if
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function ZUnionTo(dest As String, keys() As String, agg As Aggregate = Aggregate.Sum, weights() As Double = Nil) As Integer
+		  return ZAggregate( "ZUNIONSTORE", dest, keys, agg, weights )
+		  
+		End Function
+	#tag EndMethod
+
 
 	#tag Hook, Flags = &h0
 		Event Disconnected()
@@ -3040,6 +3671,18 @@ Class Redis_MTC
 	#tag Constant, Name = kDefaultPort, Type = Double, Dynamic = False, Default = \"6379", Scope = Public
 	#tag EndConstant
 
+	#tag Constant, Name = kNegativeInf, Type = String, Dynamic = False, Default = \"-", Scope = Public
+	#tag EndConstant
+
+	#tag Constant, Name = kPositiveInf, Type = String, Dynamic = False, Default = \"+", Scope = Public
+	#tag EndConstant
+
+	#tag Constant, Name = kRangeExclusive, Type = String, Dynamic = False, Default = \"(", Scope = Public
+	#tag EndConstant
+
+	#tag Constant, Name = kRangeInclusive, Type = String, Dynamic = False, Default = \"[", Scope = Public
+	#tag EndConstant
+
 	#tag Constant, Name = kSectionAll, Type = String, Dynamic = False, Default = \"all", Scope = Public
 	#tag EndConstant
 
@@ -3103,6 +3746,12 @@ Class Redis_MTC
 	#tag Constant, Name = kVersion, Type = String, Dynamic = False, Default = \"1.0", Scope = Public
 	#tag EndConstant
 
+
+	#tag Enum, Name = Aggregate, Type = Integer, Flags = &h0
+		Sum
+		  Min
+		Max
+	#tag EndEnum
 
 	#tag Enum, Name = Overflows, Type = Integer, Flags = &h0
 		Wrap
