@@ -31,6 +31,8 @@ There are some exceptions where `Redis_MTC` tries to make things clearer. For ex
 
 The class does not implement every Redis command so you might need to issue your own. Use `Execute` for this, but be sure to give the command inline (all in the first parameter) or split each part up into the parameters array.
 
+__Note__: There is also an `Exec` method that is part of Redis' transaction system. Don't confuse the two.
+
 For example, if you wanted to ignore the built-in `Set` and issue your own, you might do it in one of these ways:
 
 ```
