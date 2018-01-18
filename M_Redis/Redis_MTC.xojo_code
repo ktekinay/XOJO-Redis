@@ -886,8 +886,11 @@ Class Redis_MTC
 		    return arr
 		  elseif r.IsNull then
 		    raise new KeyNotFoundException
-		  else
+		  elseif r.IsArray then
 		    return r
+		  else
+		    dim arr() as variant
+		    return arr
 		  end if
 		  
 		End Function
@@ -907,8 +910,11 @@ Class Redis_MTC
 		    return arr
 		  elseif r.IsNull then
 		    raise new KeyNotFoundException
-		  else
+		  elseif r.IsArray then
 		    return r
+		  else
+		    dim arr() as variant
+		    return arr
 		  end if
 		  
 		End Function
@@ -951,15 +957,12 @@ Class Redis_MTC
 		  elseif r.IsNull then
 		    raise new KeyNotFoundException
 		    
-		  else
-		    dim varr() as variant = r
-		    dim arr() as string
-		    redim arr( varr.Ubound )
-		    for i as integer = 0 to varr.Ubound
-		      arr( i ) = varr( i ).StringValue
-		    next
-		    return arr
+		  elseif r.IsArray then
+		    return M_Redis.VariantToStringArray( r )
 		    
+		  else
+		    dim arr() as string
+		    return arr
 		  end if
 		End Function
 	#tag EndMethod
@@ -1065,13 +1068,11 @@ Class Redis_MTC
 		  elseif r.IsNull then
 		    raise new KeyNotFoundException
 		    
+		  elseif r.IsArray then
+		    return M_Redis.VariantToStringArray( r )
+		    
 		  else
-		    dim varr() as variant = r
 		    dim arr() as string
-		    redim arr( varr.Ubound )
-		    for i as integer = 0 to varr.Ubound
-		      arr( i ) = varr( i ).StringValue
-		    next
 		    return arr
 		    
 		  end if
@@ -1284,7 +1285,7 @@ Class Redis_MTC
 		  dim v as variant = MaybeSend( "", array( "KEYS", pattern ) )
 		  dim r() as string
 		  
-		  if not IsPipeline then
+		  if v.IsArray then
 		    dim arr() as variant = v
 		    redim r( arr.Ubound )
 		    for i as integer = 0 to arr.Ubound
@@ -1458,16 +1459,12 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h0
 		Function LRange(key As String, start As Integer, stop As Integer) As String()
-		  dim arr() as string
-		  
 		  dim r as variant = MaybeSend( "", array( "LRANGE", key, str( start ), str( stop ) ) )
 		  
-		  if not IsPipeline then
-		    dim varr() as variant = r
-		    redim arr( varr.Ubound )
-		    for i as integer = 0 to varr.Ubound
-		      arr( i ) = varr( i ).StringValue
-		    next
+		  dim arr() as string
+		  
+		  if r.IsArray then
+		    arr = M_Redis.VariantToStringArray( r )
 		  end if
 		  
 		  return arr
@@ -2183,6 +2180,7 @@ Class Redis_MTC
 		  loop until cursor = "0"
 		  
 		  return r
+		  
 		End Function
 	#tag EndMethod
 
@@ -2300,8 +2298,12 @@ Class Redis_MTC
 		  elseif r.IsNull then
 		    raise new KeyNotFoundException
 		    
-		  else
+		  elseif r.IsArray then
 		    return VariantToStringArray( r )
+		    
+		  else
+		    dim arr() as string
+		    return arr
 		    
 		  end if
 		End Function
@@ -2452,13 +2454,11 @@ Class Redis_MTC
 		  elseif r.IsNull then
 		    raise new KeyNotFoundException
 		    
+		  elseif r.IsArray then
+		    return M_Redis.VariantToStringArray( r )
+		    
 		  else
-		    dim varr() as variant = r
 		    dim arr() as string
-		    redim arr( varr.Ubound )
-		    for i as integer = 0 to varr.Ubound
-		      arr( i ) = varr( i ).StringValue
-		    next
 		    return arr
 		    
 		  end if
@@ -2575,14 +2575,11 @@ Class Redis_MTC
 		  elseif r.IsNull then
 		    raise new KeyNotFoundException // Shouldn't happen
 		    
-		  else
-		    dim varr() as variant = r
-		    dim arr() as string
-		    redim arr( varr.Ubound )
-		    for i as integer = 0 to varr.Ubound
-		      arr( i ) = varr( i ).StringValue
-		    next
+		  elseif r.IsArray then
+		    return M_Redis.VariantToStringArray( r )
 		    
+		  else
+		    dim arr() as string
 		    return arr
 		    
 		  end if
@@ -2661,8 +2658,12 @@ Class Redis_MTC
 		  elseif r.IsNull then
 		    raise new KeyNotFoundException
 		    
-		  else
+		  elseif r.IsArray then
 		    return VariantToStringArray( r )
+		    
+		  else
+		    dim arr() as string
+		    return arr
 		    
 		  end if
 		End Function
@@ -3122,10 +3123,13 @@ Class Redis_MTC
 		    //
 		    // Do nothing
 		    //
+		    
 		  elseif r.IsNull then
 		    raise new KeyNotFoundException
-		  else
+		    
+		  elseif r.IsArray then
 		    arr = M_Redis.VariantToStringArray( r )
+		    
 		  end if
 		  
 		  return arr
@@ -3150,10 +3154,13 @@ Class Redis_MTC
 		    //
 		    // Do nothing
 		    //
+		    
 		  elseif r.IsNull then
 		    raise new KeyNotFoundException
-		  else
+		    
+		  elseif r.IsArray then
 		    arr = M_Redis.VariantToStringArray( r )
+		    
 		  end if
 		  
 		  return arr
@@ -3183,10 +3190,13 @@ Class Redis_MTC
 		    //
 		    // Do nothing
 		    //
+		    
 		  elseif r.IsNull then
 		    raise new KeyNotFoundException
-		  else
+		    
+		  elseif r.IsArray then
 		    arr = M_Redis.VariantToStringArray( r )
+		    
 		  end if
 		  
 		  return arr
