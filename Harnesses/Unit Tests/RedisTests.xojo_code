@@ -185,10 +185,27 @@ Inherits TestGroup
 		  Assert.IsTrue commands.Lookup( "GET", nil ) isa M_Redis.CommandSpec
 		  
 		  #pragma BreakOnExceptions false
-		  commands = r.CommandInfo( "xososos" )
+		  commands = r.CommandInfo( "NOTHINGXXX" )
 		  #pragma BreakOnExceptions default
 		  
-		  Assert.IsNil commands
+		  Assert.AreEqual 0, commands.Count
+		  
+		  #pragma BreakOnExceptions false
+		  commands = r.CommandInfo( "GET", "NOTHINGXXX" )
+		  #pragma BreakOnExceptions default
+		  
+		  Assert.AreEqual 1, commands.Count
+		  Assert.IsFalse commands.HasKey( "NOTHINGXXX" )
+		  
+		  #pragma BreakOnExceptions false
+		  dim spec as M_Redis.CommandSpec = r.CommandInfoAsSpec( "GET" )
+		  #pragma BreakOnExceptions default 
+		  
+		  Assert.IsNotNil spec
+		  
+		  spec = r.CommandInfoAsSpec( "NOTHINGXXX" )
+		  Assert.IsNil spec
+		  
 		End Sub
 	#tag EndMethod
 
@@ -1625,6 +1642,28 @@ Inherits TestGroup
 	#tag Method, Flags = &h0
 		Sub TouchAndObjectIdleTimeTest()
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
+		  
+		  //
+		  // Make sure these are available
+		  //
+		  if true then
+		    #pragma BreakOnExceptions false
+		    dim specs as Dictionary = r.CommandInfo( "TOUCH", "OBJECT" )
+		    #pragma BreakOnExceptions default 
+		    dim touchSpec as M_Redis.CommandSpec = specs.Lookup( "TOUCH", nil )
+		    dim objectSpec as M_Redis.CommandSpec = specs.Lookup( "OBJECT", nil )
+		    
+		    if touchSpec is nil then
+		      Assert.Message "TOUCH is not available on this version of the server"
+		      return
+		    elseif touchSpec.Arity <> -2 then
+		      Assert.Message "TOUCH does not take multiple keys on this version of the server"
+		      return
+		    elseif objectSpec is nil then
+		      Assert.Message "OBJECT is not available on this version of the server"
+		      return 
+		    end if
+		  end if
 		  
 		  Assert.IsTrue r.Set( "xut:key1", "value", 30 )
 		  Assert.IsTrue r.Set( "xut:key2", "another", 30 )

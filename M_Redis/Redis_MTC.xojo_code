@@ -265,6 +265,35 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function CommandInfoAsSpec(command As String) As M_Redis.CommandSpec
+		  dim r as variant = MaybeSend( "", array( "COMMAND", "INFO", command ) )
+		  
+		  dim spec as M_Redis.CommandSpec
+		  if IsPipeline or r.IsNull or not r.IsArray then
+		    //
+		    // Do nothing
+		    //
+		    
+		  else
+		    dim arr() as variant = r
+		    if arr.Ubound <> 0 or arr( 0 ).IsNull then
+		      //
+		      // Not found
+		      //
+		      
+		    else
+		      spec = new M_Redis.CommandSpec( arr( 0 ) )
+		      
+		    end if
+		    
+		  end if
+		  
+		  return spec
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function ConfigGet(pattern As String = "*") As Dictionary
 		  if pattern = "" then
 		    pattern = "*"
@@ -1687,6 +1716,12 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Function PFAdd(key As String, ParamArray elements() As String) As Boolean
+		  return PFAdd( key, elements )
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function PFAdd(key As String, elements() As String) As Boolean
 		  dim params() as string = array( "PFADD", key )
 		  for i as integer = 0 to elements.Ubound
@@ -1703,12 +1738,6 @@ Class Redis_MTC
 		    return r.IntegerValue = 1
 		  end if
 		  
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
-		Function PFAdd(key As String, ParamArray elements() As String) As Boolean
-		  return PFAdd( key, elements )
 		End Function
 	#tag EndMethod
 

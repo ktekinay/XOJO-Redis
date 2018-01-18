@@ -2,29 +2,20 @@
 Protected Module M_Redis
 	#tag Method, Flags = &h1
 		Protected Function CommandArrayToDictionary(varr() As Variant) As Dictionary
-		  if varr() is nil or varr( 0 ) is nil then
+		  if varr() is nil then
 		    return nil
 		  end if
 		  
 		  dim d as new Dictionary
 		  
 		  for outerIndex as integer = 0 to varr.Ubound
-		    dim spec as new M_Redis.CommandSpec
-		    dim element() as variant = varr( outerIndex )
 		    
-		    spec.Name = element( 0 )
-		    spec.Arity = element( 1 )
+		    if varr( outerIndex ).IsArray then
+		      dim element() as variant = varr( outerIndex )
+		      dim spec as new M_Redis.CommandSpec( element )
+		      d.Value( spec.Name ) = spec
+		    end if
 		    
-		    dim flags() as variant = element( 2 )
-		    for flagIndex as integer = 0 to flags.Ubound
-		      spec.Flags.Append flags( flagIndex )
-		    next
-		    
-		    spec.FirstKeyIndex = element( 3 )
-		    spec.LastKeyIndex = element( 4 )
-		    spec.KeyStepCount = element( 5)
-		    
-		    d.Value( spec.Name ) = spec
 		  next
 		  
 		  return d
