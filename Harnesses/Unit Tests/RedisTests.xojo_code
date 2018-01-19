@@ -112,9 +112,7 @@ Inherits TestGroup
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  if true then
-		    #pragma BreakOnExceptions false
 		    dim spec as M_Redis.CommandSpec = r.CommandInfoAsSpec( "BITFIELD" )
-		    #pragma BreakOnExceptions default
 		    
 		    if spec is nil then
 		      Assert.Message "BITFIELD is not available on this version of the server"
@@ -181,36 +179,26 @@ Inherits TestGroup
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  dim cnt as integer = r.CommandCount
-		  #pragma BreakOnExceptions false
 		  dim commands as Dictionary = r.Command
-		  #pragma BreakOnExceptions default
 		  
 		  Assert.AreEqual cnt, commands.Count
 		  Assert.IsTrue commands.HasKey( "GET" )
 		  
-		  #pragma BreakOnExceptions false
 		  commands = r.CommandInfo( "GET", "SET" )
-		  #pragma BreakOnExceptions default
 		  
 		  Assert.AreEqual 2, commands.Count
 		  Assert.IsTrue commands.Lookup( "GET", nil ) isa M_Redis.CommandSpec
 		  
-		  #pragma BreakOnExceptions false
 		  commands = r.CommandInfo( "NOTHINGXXX" )
-		  #pragma BreakOnExceptions default
 		  
 		  Assert.AreEqual 0, commands.Count
 		  
-		  #pragma BreakOnExceptions false
 		  commands = r.CommandInfo( "GET", "NOTHINGXXX" )
-		  #pragma BreakOnExceptions default
 		  
 		  Assert.AreEqual 1, commands.Count
 		  Assert.IsFalse commands.HasKey( "NOTHINGXXX" )
 		  
-		  #pragma BreakOnExceptions false
 		  dim spec as M_Redis.CommandSpec = r.CommandInfoAsSpec( "GET" )
-		  #pragma BreakOnExceptions default 
 		  
 		  Assert.IsNotNil spec
 		  
@@ -1658,9 +1646,7 @@ Inherits TestGroup
 		  // Make sure these are available
 		  //
 		  if true then
-		    #pragma BreakOnExceptions false
 		    dim specs as Dictionary = r.CommandInfo( "TOUCH", "OBJECT" )
-		    #pragma BreakOnExceptions default 
 		    dim touchSpec as M_Redis.CommandSpec = specs.Lookup( "TOUCH", nil )
 		    dim objectSpec as M_Redis.CommandSpec = specs.Lookup( "OBJECT", nil )
 		    

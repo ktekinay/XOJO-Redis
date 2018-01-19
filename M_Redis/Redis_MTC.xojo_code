@@ -1207,22 +1207,59 @@ Class Redis_MTC
 		  
 		  dim useArr as boolean = not isSubprocess
 		  
+		  dim ph as M_Redis.Placeholder
+		  if PlaceholderStack.Ubound <> -1 then
+		    ph = PlaceholderStack.Pop
+		  end if
+		  
 		  do
-		    
+		    dim eolPos as integer
+		    dim arr() as variant
+		    dim arrayStart as integer = -1
 		    dim firstLine as string
 		    dim firstChar as string
 		    
-		    dim eolPos as integer = s.InStrB( pos + 1, eol )
-		    if eolPos = 0 then
-		      //
-		      // There must be one EOL in valid data
-		      //
-		      raise new M_Redis.InsufficientDataException
+		    if ph isa object then
+		      pos = ph.Pos
+		      eolPos = ph.EolPos
+		      firstLine = ph.FirstLine
+		      firstChar = ph.FirstChar
+		      arr = ph.Arr
+		      arrayStart = ph.ArrayStart
+		      r = ph.R
 		    end if
 		    
-		    firstChar = s.MidB( pos, 1 )
-		    firstLine = s.MidB( pos + 1, eolPos - pos - 1 )
-		    pos = eolPos + eolLen
+		    if eolPos = 0 then
+		      eolPos = s.InStrB( pos + 1, eol )
+		      if eolPos = 0 then
+		        //
+		        // There must be one EOL in valid data
+		        //
+		        if ph is nil then
+		          ph = new M_Redis.Placeholder
+		        else
+		          ph.FirstLine = firstLine
+		          ph.FirstChar = firstChar
+		          ph.Arr = arr
+		          ph.ArrayStart = arrayStart
+		        end if
+		        ph.Pos = pos
+		        ph.EolPos = eolPos
+		        ph.R = r
+		        
+		        PlaceholderStack.Append ph
+		        return Results
+		      end if
+		      
+		      firstChar = s.MidB( pos, 1 )
+		      firstLine = s.MidB( pos + 1, eolPos - pos - 1 )
+		      pos = eolPos + eolLen
+		    end if
+		    
+		    //
+		    // If we get here, we no longer need the Placeholder
+		    //
+		    ph = nil
 		    
 		    select case firstChar
 		    case ":" // Integer
@@ -1243,42 +1280,72 @@ Class Redis_MTC
 		      if firstLine = "-1" then
 		        r = nil
 		        
-		      elseif firstLine = "0" then
-		        r = ""
-		        pos = pos + eolLen
-		        
 		      else
-		        dim bytes as integer = firstLine.Val
+		        dim bytes as integer = if( firstLine = "0", 0, firstLine.Val )
 		        
-		        dim data as string = s.MidB( pos, bytes )
-		        if Encodings.UTF8.IsValidData( data ) then
-		          r = data
+		        if ( pos + bytes + eolLen ) > ( sLen + 1 ) then
+		          ph = new M_Redis.Placeholder
+		          ph.Pos = pos
+		          ph.EolPos = eolPos
+		          ph.FirstLine = firstLine
+		          ph.FirstChar = firstChar
+		          ph.R = r
+		          
+		          PlaceholderStack.Append ph
+		          return Results
+		        end if
+		        
+		        if bytes = 0 then
+		          r = ""
 		        else
-		          r = data.DefineEncoding( nil )
+		          dim data as string = s.MidB( pos, bytes )
+		          if Encodings.UTF8.IsValidData( data ) then
+		            r = data
+		          else
+		            r = data.DefineEncoding( nil )
+		          end if
 		        end if
 		        
 		        pos = pos + bytes + eolLen
 		        
 		      end if
 		      
-		      if pos > ( sLen + 1 ) then
-		        raise new M_Redis.InsufficientDataException
-		      end if
-		      
 		    case "*" // Array
-		      if firstLine = "-1" then
+		      if arrayStart = -1 and firstLine = "-1" then
 		        r = nil
 		        
 		      else
-		        dim ub as integer = firstLine.Val - 1
-		        
-		        dim arr() as variant
+		        dim ub as integer 
+		        if arrayStart = -1 then
+		          ub = firstLine.Val - 1
+		          if ub <> -1 then
+		            redim arr( ub )
+		          end if
+		        else
+		          ub = arr.Ubound
+		        end if
 		        
 		        if ub <> -1 then
-		          redim arr( ub )
-		          
-		          for i as integer = 0 to ub
-		            arr( i ) = InterpretResponse( s, sLen, pos, true )
+		          if arrayStart = -1 then
+		            arrayStart = 0
+		          end if
+		          for i as integer = arrayStart to ub
+		            dim item as variant = InterpretResponse( s, sLen, pos, true )
+		            if PlaceholderStack.Ubound <> -1 then
+		              ph = new M_Redis.Placeholder
+		              ph.Pos = pos
+		              ph.EolPos = eolPos
+		              ph.FirstLine = firstLine
+		              ph.FirstChar = firstChar
+		              ph.Arr = arr
+		              ph.ArrayStart = i
+		              ph.R = r
+		              
+		              PlaceholderStack.Append ph
+		              return Results
+		            end if
+		            
+		            arr( i ) = item
 		          next
 		        end if
 		        
@@ -1912,16 +1979,12 @@ Class Redis_MTC
 		    try
 		      dim pos as integer = 1
 		      Results = InterpretResponse( s, s.LenB, pos )
-		      
-		    catch err as M_Redis.InsufficientDataException
-		      //
-		      // We have to try again
-		      //
-		      Buffer.Append s
-		      
-		      #if DebugBuild then
-		        System.DebugLog CurrentMethodName + ": InsufficientDataException"
-		      #endif
+		      if PlaceholderStack.Ubound <> -1 then
+		        //
+		        // We have to try again
+		        //
+		        Buffer.Append s
+		      end if
 		      
 		    catch err as RuntimeException
 		      //
@@ -3607,6 +3670,10 @@ Class Redis_MTC
 
 	#tag Property, Flags = &h21
 		Private PipelineQueue() As String
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private PlaceholderStack() As M_Redis.Placeholder
 	#tag EndProperty
 
 	#tag ComputedProperty, Flags = &h0
