@@ -111,6 +111,17 @@ Inherits TestGroup
 		Sub BitFieldSetGetTest()
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
+		  if true then
+		    #pragma BreakOnExceptions false
+		    dim spec as M_Redis.CommandSpec = r.CommandInfoAsSpec( "BITFIELD" )
+		    #pragma BreakOnExceptions default
+		    
+		    if spec is nil then
+		      Assert.Message "BITFIELD is not available on this version of the server"
+		      return
+		    end if
+		  end if
+		  
 		  const kZero as Int64 = 0
 		  
 		  Assert.AreEqual kZero, r.BitFieldSet( "xut:key","u8", 0, &b10101010 ), "Set 1"
