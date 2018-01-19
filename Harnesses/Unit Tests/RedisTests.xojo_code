@@ -439,6 +439,28 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub GetLatencyReportTest()
+		  self.StopTestOnFail = true
+		  
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
+		  
+		  dim locale as Xojo.Core.Locale = Xojo.Core.Locale.Current
+		  dim pattern as text = "#,###,##0.0##;-#,###,##0.0##"
+		  dim unit as text = " ms"
+		  
+		  dim l as M_Redis.LatencyReport = r.GetLatencyReport
+		  Assert.IsNotNil l
+		  
+		  Assert.Message "Samples: " + l.Samples.ToText( locale, "###,###,##0" )
+		  Assert.Message "Total: " + l.TotalSecs.ToText( locale, pattern ) + " s"
+		  Assert.Message "Min: " + l.MinimumMs.ToText( locale, pattern ) + unit
+		  Assert.Message "Max: " + l.MaximumMs.ToText( locale, pattern ) + unit
+		  Assert.Message "Avg: " + l.AverageMs.ToText( locale, pattern ) + unit
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub GetRangeTest()
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  

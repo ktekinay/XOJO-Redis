@@ -718,8 +718,54 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function GetMultiple(ParamArray keys() As String) As Variant()
-		  return GetMultiple( keys )
+		Function GetLatencyReport(intervalSecs As Double=1.0) As M_Redis.LatencyReport
+		  //
+		  // Bypasses normal functions to get a raw measurement
+		  //
+		  
+		  if IsPipeline then
+		    raise new RedisException( "Cannot report latency while using a Pipeline" )
+		  end if
+		  
+		  dim r as new M_Redis.LatencyReport
+		  
+		  dim totalElapsedMs as double
+		  dim targetTotalElapsedMs as double = intervalSecs * 1000.0
+		  dim samples as integer
+		  
+		  dim sum as double
+		  
+		  dim oldTrackLatency as boolean = TrackLatency
+		  TrackLatency = true
+		  
+		  try
+		    do
+		      samples = samples + 1
+		      call Ping
+		      
+		      dim elapsedMs as double = LatencyMs
+		      totalElapsedMs = totalElapsedMs + elapsedMs
+		      
+		      sum = sum + elapsedMs
+		      
+		      r.MaximumMs = max( r.MaximumMs, elapsedMs )
+		      r.MinimumMs = min( r.MinimumMs, elapsedMs )
+		    loop until totalElapsedMs >= targetTotalElapsedMs
+		    
+		    r.Samples = samples
+		    r.TotalSecs = totalElapsedMs / 1000.0
+		    
+		    r.AverageMs = sum / CType( samples, double )
+		    
+		  catch err as RuntimeException
+		    TrackLatency = oldTrackLatency
+		    r = nil
+		    raise err
+		  end try
+		  
+		  TrackLatency = oldTrackLatency
+		  return r
+		  
 		End Function
 	#tag EndMethod
 
@@ -734,6 +780,12 @@ Class Redis_MTC
 		    return arr
 		  end if
 		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function GetMultiple(ParamArray keys() As String) As Variant()
+		  return GetMultiple( keys )
 		End Function
 	#tag EndMethod
 
@@ -1701,12 +1753,16 @@ Class Redis_MTC
 		      #endif
 		      Socket.Write cmd // Either way, it will already have the trailing eol
 		      Socket.Flush
+		      if TrackLatency then
+		        DataSentMicrosecs = Microseconds
+		      end if
 		    end if
 		    
 		    if isPipeline and not IsFlushingPipeline then
 		      r = true
 		      
 		    else
+		      Socket.Poll
 		      r = GetResponse
 		      
 		      if r.Type = Variant.TypeObject and r isa RedisException then
@@ -1783,12 +1839,6 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function PFAdd(key As String, ParamArray elements() As String) As Boolean
-		  return PFAdd( key, elements )
-		End Function
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
 		Function PFAdd(key As String, elements() As String) As Boolean
 		  dim params() as string = array( "PFADD", key )
 		  for i as integer = 0 to elements.Ubound
@@ -1805,6 +1855,12 @@ Class Redis_MTC
 		    return r.IntegerValue = 1
 		  end if
 		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function PFAdd(key As String, ParamArray elements() As String) As Boolean
+		  return PFAdd( key, elements )
 		End Function
 	#tag EndMethod
 
@@ -2568,6 +2624,10 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h21
 		Private Sub Socket_DataAvailable(sender As TCPSocket)
+		  if TrackLatency then
+		    LatencyMicrosecs = Microseconds - DataSentMicrosecs
+		  end if
+		  
 		  dim data as string = sender.ReadAll( Encodings.UTF8 )
 		  Buffer.Append data
 		  
@@ -3584,6 +3644,10 @@ Class Redis_MTC
 		Private CommandSemaphore As Semaphore
 	#tag EndProperty
 
+	#tag Property, Flags = &h21
+		Private DataSentMicrosecs As Double
+	#tag EndProperty
+
 	#tag ComputedProperty, Flags = &h21
 		#tag Getter
 			Get
@@ -3654,6 +3718,21 @@ Class Redis_MTC
 			End Get
 		#tag EndGetter
 		LastErrorCode As Integer
+	#tag EndComputedProperty
+
+	#tag Property, Flags = &h21
+		Private LatencyMicrosecs As Double
+	#tag EndProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  return LatencyMicrosecs / 1000.0
+			  
+			  
+			End Get
+		#tag EndGetter
+		LatencyMs As Double
 	#tag EndComputedProperty
 
 	#tag Property, Flags = &h21
@@ -3757,6 +3836,10 @@ Class Redis_MTC
 
 	#tag Property, Flags = &h21
 		Private TimeoutSemaphore As Semaphore
+	#tag EndProperty
+
+	#tag Property, Flags = &h0
+		TrackLatency As Boolean
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
