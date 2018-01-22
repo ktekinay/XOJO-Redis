@@ -43,9 +43,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub AuthTest()
-		  //
-		  // A dangerous test that we do not perform unless needed
-		  //
+		  Assert.Message "A dangerous test that we do not perform unless needed"
 		  return
 		  
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
@@ -99,6 +97,10 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub BitFieldIncrementByTest()
+		  if not HasCommand( "BITFIELD" ) then
+		    return
+		  end if
+		  
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  Assert.AreEqual CType( 0, Int64), r.BitFieldSet( "xut:key", r.kTypeUInt32, 0, 0 )
@@ -113,16 +115,11 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub BitFieldSetGetTest()
-		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
-		  
-		  if true then
-		    dim spec as M_Redis.CommandSpec = r.CommandInfoAsSpec( "BITFIELD" )
-		    
-		    if spec is nil then
-		      Assert.Message "BITFIELD is not available on this version of the server"
-		      return
-		    end if
+		  if not HasCommand( "BITFIELD" ) then
+		    return
 		  end if
+		  
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
 		  const kZero as Int64 = 0
 		  
@@ -414,9 +411,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub FlushAllTest()
-		  //
-		  // A dangerous test that we do not perform unless needed
-		  //
+		  Assert.Message "A dangerous test that we do not perform unless needed"
 		  return
 		  
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
@@ -429,9 +424,7 @@ Inherits TestGroup
 
 	#tag Method, Flags = &h0
 		Sub FlushDBTest()
-		  //
-		  // A dangerous test that we do not perform unless needed
-		  //
+		  Assert.Message "A dangerous test that we do not perform unless needed"
 		  return
 		  
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
@@ -492,6 +485,17 @@ Inherits TestGroup
 		End Sub
 	#tag EndMethod
 
+	#tag Method, Flags = &h21
+		Private Function HasCommand(cmd As String) As Boolean
+		  if App.CommandDict.HasKey( cmd ) then
+		    return true
+		  else
+		    Assert.Message cmd.ToText + " is not available on this version of the server"
+		    return false
+		  end if
+		End Function
+	#tag EndMethod
+
 	#tag Method, Flags = &h0
 		Sub HashFunctionsTest()
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
@@ -503,9 +507,11 @@ Inherits TestGroup
 		  Assert.AreEqual "newvalue", r.HGet( "xut:hash", "field1" )
 		  Assert.AreEqual 1, r.HSet( "xut:hash", "field2", "value" )
 		  
-		  Assert.AreEqual 8, r.HStrLen( "xut:hash", "field1" )
-		  Assert.AreEqual 0, r.HStrLen( "xut:hash", "field1000" )
-		  Assert.AreEqual 0, r.HStrLen( "xut:something", "field1" )
+		  if HasCommand( "HSTRLEN" ) then
+		    Assert.AreEqual 8, r.HStrLen( "xut:hash", "field1" )
+		    Assert.AreEqual 0, r.HStrLen( "xut:hash", "field1000" )
+		    Assert.AreEqual 0, r.HStrLen( "xut:something", "field1" )
+		  end if
 		  
 		  dim d as Dictionary = r.HGetAll( "xut:hash" )
 		  Assert.AreEqual 2, d.Count
@@ -1173,30 +1179,37 @@ Inherits TestGroup
 		Sub SetFunctionsTest()
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  
-		  Assert.AreEqual 6, r.SAdd( "xut:set", "1", "2", "3", "4", "5", "6" )
-		  Assert.AreEqual 2, r.SRemove( "xut:set", "5", "6", "7" )
+		  Assert.AreEqual 6, r.SAdd( "xut:set", "1", "2", "3", "4", "5", "6" ), "SADD"
+		  Assert.AreEqual 2, r.SRemove( "xut:set", "5", "6", "7" ), "SREMOVE"
 		  
 		  dim members() as string = r.SScan( "xut:set" )
-		  Assert.AreEqual 3, CType( members.Ubound, Integer )
+		  Assert.AreEqual 3, CType( members.Ubound, Integer ), "SSCAN"
 		  
-		  Assert.IsTrue r.SIsMember( "xut:set", "1" )
-		  Assert.IsFalse r.SIsMember( "xut:set", "10" )
-		  Assert.IsFalse r.SIsMember( "xut:setxxx", "1" )
+		  Assert.IsTrue r.SIsMember( "xut:set", "1" ), "ISMEMBER 1"
+		  Assert.IsFalse r.SIsMember( "xut:set", "10" ), "ISMEMBER 10"
+		  Assert.IsFalse r.SIsMember( "xut:setxxx", "1" ), "ISMEMBER with bad key"
 		  
 		  members = r.SMembers( "xut:set" )
-		  Assert.AreEqual 3, CType( members.Ubound, Integer )
+		  Assert.AreEqual 3, CType( members.Ubound, Integer ), "SMEMBERS"
 		  
 		  dim m as string = r.SRandomMember( "xut:set" )
-		  Assert.IsTrue members.IndexOf( m ) <> -1
+		  Assert.IsTrue members.IndexOf( m ) <> -1, "SRANDMEMBER"
 		  
 		  for i as integer = 0 to members.Ubound
 		    m = r.SPop( "xut:set" )
-		    Assert.IsTrue members.IndexOf( m ) <> -1
+		    Assert.IsTrue members.IndexOf( m ) <> -1, "SPOP index " + i.ToText
 		  next
 		  
-		  Assert.AreEqual members.Ubound + 1, r.SAdd( "xut:set", members ), "Add members before pop"
-		  dim popped() as string = r.SPop( "xut:set", 2 )
-		  Assert.AreEqual 1, CType( popped.Ubound, Integer )
+		  if true then
+		    dim popSpec as M_Redis.CommandSpec = r.CommandInfoAsSpec( "SPOP" )
+		    if popSpec.Arity > 0 then
+		      Assert.Message "TOUCH key COUNT is not supported on this version of the server, skipping"
+		    else
+		      Assert.AreEqual members.Ubound + 1, r.SAdd( "xut:set", members ), "Add members before pop"
+		      dim popped() as string = r.SPop( "xut:set", 2 )
+		      Assert.AreEqual 1, CType( popped.Ubound, Integer ), "SPOP with COUNT"
+		    end if
+		  end if
 		  
 		  call r.Delete( r.Scan( "xut:*" ) )
 		  
@@ -1671,20 +1684,19 @@ Inherits TestGroup
 		  //
 		  // Make sure these are available
 		  //
+		  if not HasCommand( "TOUCH" ) or not HasCommand( "OBJECT" ) then
+		    return
+		  end if
+		  
+		  //
+		  // Make sure TOUCH has what we need
+		  //
 		  if true then
-		    dim specs as Dictionary = r.CommandInfo( "TOUCH", "OBJECT" )
-		    dim touchSpec as M_Redis.CommandSpec = specs.Lookup( "TOUCH", nil )
-		    dim objectSpec as M_Redis.CommandSpec = specs.Lookup( "OBJECT", nil )
+		    dim touchSpec as M_Redis.CommandSpec = App.CommandDict.Value( "TOUCH" )
 		    
-		    if touchSpec is nil then
-		      Assert.Message "TOUCH is not available on this version of the server"
-		      return
-		    elseif touchSpec.Arity <> -2 then
+		    if touchSpec.Arity <> -2 then
 		      Assert.Message "TOUCH does not take multiple keys on this version of the server"
 		      return
-		    elseif objectSpec is nil then
-		      Assert.Message "OBJECT is not available on this version of the server"
-		      return 
 		    end if
 		  end if
 		  
