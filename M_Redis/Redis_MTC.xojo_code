@@ -1678,14 +1678,16 @@ Class Redis_MTC
 		      dollars( i ) = "$" + str( i )
 		    next
 		  end if
+		  static dollarsUbound as integer = dollars.Ubound
 		  
 		  static arrayCounts() as string
 		  if arrayCounts.Ubound = -1 then
-		    redim arrayCounts( 100 )
+		    redim arrayCounts( 30 )
 		    for i as integer = 0 to arrayCounts.Ubound
 		      arrayCounts( i ) = "*" + str( i )
 		    next
 		  end if
+		  static arrayCountsUbound as integer = arrayCounts.Ubound
 		  
 		  dim r as variant
 		  
@@ -1723,14 +1725,14 @@ Class Redis_MTC
 		      redim arr( arrUb )
 		      
 		      arrIndex = arrIndex + 1
-		      arr( arrIndex ) = if( redisUb > arrayCounts.Ubound, "*" + str( redisUb ), arrayCounts( redisUb ) )
+		      arr( arrIndex ) = if( redisUb > arrayCountsUbound, "*" + str( redisUb ), arrayCounts( redisUb ) )
 		      
 		      for i as integer = 0 to commandParts.Ubound
 		        dim p as string = commandParts( i )
 		        dim pLen as integer = p.LenB
 		        
 		        arrIndex = arrIndex + 1
-		        arr( arrIndex ) = if( pLen > dollars.Ubound, "$" + str( pLen ), dollars( pLen ) )
+		        arr( arrIndex ) = if( pLen > dollarsUbound, "$" + str( pLen ), dollars( pLen ) )
 		        arrIndex = arrIndex + 1
 		        arr( arrIndex ) = p
 		      next
@@ -3991,6 +3993,11 @@ Class Redis_MTC
 			Type="Integer"
 		#tag EndViewProperty
 		#tag ViewProperty
+			Name="LatencyMs"
+			Group="Behavior"
+			Type="Double"
+		#tag EndViewProperty
+		#tag ViewProperty
 			Name="Left"
 			Visible=true
 			Group="Position"
@@ -4037,6 +4044,11 @@ Class Redis_MTC
 			Group="Position"
 			InitialValue="0"
 			Type="Integer"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="TrackLatency"
+			Group="Behavior"
+			Type="Boolean"
 		#tag EndViewProperty
 	#tag EndViewBehavior
 End Class
