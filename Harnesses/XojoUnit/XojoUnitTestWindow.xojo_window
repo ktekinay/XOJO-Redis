@@ -932,6 +932,34 @@ End
 		    
 		    RunTests
 		  End
+		  
+		  //
+		  // Alternative: Include or Exclude unit tests with
+		  //
+		  //  --includeunittests or --excludeunitttests
+		  //
+		  // Multiple patterns can be specified with commas.
+		  //
+		  // Note:
+		  //  These must also be last.
+		  //
+		  
+		  rx.SearchPattern = "(?mi-Us)(?<=\s)--(include|exclude)unittests\b (.+)"
+		  match = rx.Search(argString)
+		  
+		  If match IsA Object Then
+		    Dim type As String = match.SubExpressionString(1)
+		    Dim pattern As String = match.SubExpressionString(2)
+		    Dim patterns() As String = pattern.Split(",")
+		    
+		    Select Case type
+		    Case "include"
+		      Controller.FilterTests(patterns, Nil)
+		    Case "exclude"
+		      Controller.FilterTests(Nil, patterns)
+		    End Select
+		  End If
+		  
 		End Sub
 	#tag EndEvent
 
@@ -1596,13 +1624,30 @@ End
 		  #Pragma Unused x
 		  #Pragma Unused y
 		  
-		  If Me.Cell(row, ColResult) = TestResult.Failed Then
-		    g.ForeColor = &cFF0000
-		    g.Bold = True
-		  Else
-		    g.ForeColor = &c000000
-		    g.Bold = False
+		  Const kRedColor As Color = &cFF000000
+		  Const kBlackColor As Color = &c00000000
+		  Static kGreyColor As Color = DisabledTextColor // Pseudo-constant
+		  
+		  If Me.RowTag(row) IsA TestResult Then
+		    
+		    Dim tr As TestResult = Me.RowTag(row)
+		    
+		    If tr.Result = TestResult.Failed Then
+		      g.ForeColor = kRedColor
+		      g.Bold = True
+		      
+		    Else
+		      If tr.Result = TestResult.NotImplemented Then
+		        g.ForeColor = kGreyColor
+		      Else
+		        g.ForeColor = kBlackColor
+		      End If
+		      g.Bold = Not tr.Message.Empty
+		      
+		    End If
+		    
 		  End If
+		  
 		End Function
 	#tag EndEvent
 #tag EndEvents
