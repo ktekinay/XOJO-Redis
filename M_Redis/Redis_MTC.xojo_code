@@ -341,9 +341,25 @@ Class Redis_MTC
 		    return true
 		  end if
 		  
+		  dim connectionError as RuntimeException
+		  
 		  IsConnecting = true
-		  Socket.Connect
+		  #pragma BreakOnExceptions false
+		  try
+		    Socket.Connect
+		  catch err as RuntimeException
+		    connectionError = err
+		  end try
 		  IsConnecting = false
+		  #pragma BreakOnExceptions default
+		  
+		  if connectionError isa EndException or connectionError isa ThreadEndException then
+		    raise connectionError
+		  end if
+		  
+		  if connectionError isa object then
+		    return false
+		  end if
 		  
 		  dim startMs as double = Microseconds
 		  do
