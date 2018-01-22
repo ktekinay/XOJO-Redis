@@ -56,7 +56,7 @@ Inherits TestGroup
 		    r = new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		    Assert.Fail "Created unauthenticated object"
 		  catch err as RuntimeException
-		    Assert.Pass "Created authenticated object"
+		    Assert.Pass
 		  end try
 		  #pragma BreakOnExceptions default
 		  
@@ -106,7 +106,7 @@ Inherits TestGroup
 		  Assert.AreEqual CType( 0, Int64), r.BitFieldSet( "xut:key", r.kTypeUInt32, 0, 0 )
 		  Assert.AreEqual CType( 5, Int64 ), r.BitFieldIncrementBy( "xut:key", "u8", 0, 5 )
 		  Assert.AreEqual CType( 7, Int64 ), r.BitFieldIncrementBy( "xut:key", "u8", 0, 2, false, Redis_MTC.Overflows.Sat )
-		  Assert.Message "With Overflow: " + &uA + ReplaceLineEndings( r.LastCommand.Trim, &uA ).ToText
+		  'Assert.Message "With Overflow: " + &uA + ReplaceLineEndings( r.LastCommand.Trim, &uA ).ToText
 		  
 		  r.Delete "xut:key"
 		  
@@ -226,7 +226,7 @@ Inherits TestGroup
 		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		  #pragma unused r
 		  
-		  Assert.Pass "Connected"
+		  Assert.Pass 
 		  
 		End Sub
 	#tag EndMethod
@@ -289,14 +289,14 @@ Inherits TestGroup
 		    r.Delete( "xut:key" )
 		    Assert.Fail "Did not raise exception"
 		  catch err as KeyNotFoundException
-		    Assert.Pass "Raised exception"
+		    Assert.Pass 
 		  end try
 		  #pragma BreakOnExceptions default
 		  
 		  #pragma BreakOnExceptions false
 		  try
 		    r.Delete( "xut:key", true )
-		    Assert.Pass "Did not raise exception on silent"
+		    Assert.Pass 
 		  catch err as KeyNotFoundException
 		    Assert.Fail "Raised exception on silent"
 		  end try
@@ -368,7 +368,7 @@ Inherits TestGroup
 		    r.Expire "xut:key1", 1
 		    Assert.Fail "Key should have expired"
 		  catch err as KeyNotFoundException
-		    Assert.Pass "Unknown key"
+		    Assert.Pass 
 		  end try
 		  #pragma BreakOnExceptions default
 		  
@@ -884,7 +884,7 @@ Inherits TestGroup
 		    call r.ObjectEncoding( "xut:key3" )
 		    Assert.Fail "Key should not exist"
 		  catch err as KeyNotFoundException
-		    Assert.Pass "Key doesn't exist"
+		    Assert.Pass
 		  end try
 		  #pragma BreakOnExceptions default
 		  
@@ -986,7 +986,7 @@ Inherits TestGroup
 		  
 		  Assert.IsTrue r.Set( "xut:key", "value" )
 		  dim randKey as string = r.RandomKey
-		  Assert.Message "Key is " + randKey.ToText
+		  Assert.Message "Random key is " + randKey.ToText
 		  Assert.IsTrue randKey <> ""
 		  r.Delete "xut:key"
 		  
@@ -1008,17 +1008,17 @@ Inherits TestGroup
 	#tag Method, Flags = &h0
 		Sub RedisControlTest()
 		  dim r as new RedisControl_MTC
-		  Assert.IsFalse r.IsConnected
+		  Assert.IsFalse r.IsConnected, "Should not connect on instantiation"
 		  
 		  r.Address = App.RedisAddress
 		  r.Port = App.RedisPort
-		  Assert.IsTrue r.Connect( App.RedisPassword )
+		  Assert.IsTrue r.Connect( App.RedisPassword ), "Does not connect with correct settings"
 		  
-		  Assert.IsTrue r.Set( "xut:key", "value", 1000 )
+		  Assert.IsTrue r.Set( "xut:key", "value", 1000 ), "Could not set key"
 		  
 		  r = new RedisControl_MTC
-		  r.Address = ""
-		  Assert.IsFalse r.Connect
+		  r.Address = "www.mactechnologies.com"
+		  Assert.IsFalse r.Connect, "Connected with bad address -- what?!?"
 		End Sub
 	#tag EndMethod
 
@@ -1050,7 +1050,7 @@ Inherits TestGroup
 		  
 		  Assert.IsTrue r.Set( "xut:key1", "value" )
 		  r.Rename "xut:key1", "xut:key2", true
-		  Assert.Pass "Rename to non-existent key passed"
+		  Assert.Pass
 		  
 		  Assert.IsTrue r.Set( "xut:key1", "first" )
 		  #pragma BreakOnExceptions false
@@ -1058,7 +1058,7 @@ Inherits TestGroup
 		    r.Rename "xut:key1", "xut:key2", true
 		    Assert.Fail "Renamed to existing key"
 		  catch err as RuntimeException
-		    Assert.Pass "Could not rename to existing key"
+		    Assert.Pass
 		  end try
 		  #pragma BreakOnExceptions default
 		  
@@ -1168,7 +1168,7 @@ Inherits TestGroup
 		    call r.Get( "xut:key" )
 		    Assert.Fail "Fetched expired key"
 		  catch err as KeyNotFoundException
-		    Assert.Pass "Properly set expiring key"
+		    Assert.Pass
 		  end try
 		  #pragma BreakOnExceptions default
 		  
@@ -1665,7 +1665,7 @@ Inherits TestGroup
 		    call r.TimeToLiveMs( "xut:key1" )
 		    Assert.Fail "Key should not exist"
 		  catch err as KeyNotFoundException
-		    Assert.Pass "Unknown key"
+		    Assert.Pass
 		  end try
 		  #pragma BreakOnExceptions default
 		  
@@ -1715,7 +1715,7 @@ Inherits TestGroup
 		    call r.ObjectIdleTime( "xut:key3" )
 		    Assert.Fail "Key should not exist"
 		  catch err as KeyNotFoundException
-		    Assert.Pass "Key doesn't exist"
+		    Assert.Pass
 		  end try
 		  #pragma BreakOnExceptions default
 		  
@@ -1790,7 +1790,7 @@ Inherits TestGroup
 		    call r.Type( "xut:key1" )
 		    Assert.Fail "Did not raise exception"
 		  catch err as KeyNotFoundException
-		    Assert.Pass "Raised exception"
+		    Assert.Pass 
 		  end try
 		  #pragma BreakOnExceptions default
 		  
