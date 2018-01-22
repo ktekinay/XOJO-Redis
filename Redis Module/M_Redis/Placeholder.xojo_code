@@ -1,36 +1,56 @@
 #tag Class
-Protected Class LatencyReport
-	#tag Method, Flags = &h0
-		Sub Constructor()
-		  MinimumMs = val( "+INF" )
-		  MaximumMs = val( "-INF" )
-		  
-		End Sub
-	#tag EndMethod
-
-
+Private Class Placeholder
 	#tag Property, Flags = &h0
-		AverageMs As Double
+		Arr() As Variant
 	#tag EndProperty
 
 	#tag Property, Flags = &h0
-		MaximumMs As Double
+		ArrayStart As Integer = -1
 	#tag EndProperty
 
 	#tag Property, Flags = &h0
-		MinimumMs As Double
+		EolPos As Integer
 	#tag EndProperty
 
 	#tag Property, Flags = &h0
-		Samples As Integer
+		FirstChar As String
 	#tag EndProperty
 
 	#tag Property, Flags = &h0
-		TotalSecs As Double
+		FirstLine As String
+	#tag EndProperty
+
+	#tag Property, Flags = &h0
+		Pos As Integer
+	#tag EndProperty
+
+	#tag Property, Flags = &h0
+		R As Variant
 	#tag EndProperty
 
 
 	#tag ViewBehavior
+		#tag ViewProperty
+			Name="ArrayStart"
+			Group="Behavior"
+			InitialValue="-1"
+			Type="Integer"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="EolPos"
+			Group="Behavior"
+			Type="Integer"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="FirstChar"
+			Group="Behavior"
+			Type="String"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="FirstLine"
+			Group="Behavior"
+			Type="String"
+		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Index"
 			Visible=true
@@ -46,15 +66,15 @@ Protected Class LatencyReport
 			Type="Integer"
 		#tag EndViewProperty
 		#tag ViewProperty
-			Name="MinimumMicroSecs"
-			Group="Behavior"
-			Type="Integer"
-		#tag EndViewProperty
-		#tag ViewProperty
 			Name="Name"
 			Visible=true
 			Group="ID"
 			Type="String"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="Pos"
+			Group="Behavior"
+			Type="Integer"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Super"

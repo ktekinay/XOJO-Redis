@@ -43,11 +43,6 @@ Private Class SemaphoreHolder
 			Type="String"
 		#tag EndViewProperty
 		#tag ViewProperty
-			Name="Sema"
-			Group="Behavior"
-			Type="Integer"
-		#tag EndViewProperty
-		#tag ViewProperty
 			Name="Super"
 			Visible=true
 			Group="ID"

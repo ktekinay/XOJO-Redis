@@ -1,40 +1,30 @@
 #tag Class
-Private Class Placeholder
+Protected Class SortedSetItem
+	#tag Method, Flags = &h0
+		Sub Constructor(score As Double, member As String)
+		  self.Score = score
+		  self.Member = member
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub Operator_Convert(p As Pair)
+		  Constructor p.Left.DoubleValue, p.Right.StringValue
+		End Sub
+	#tag EndMethod
+
+
 	#tag Property, Flags = &h0
-		Arr() As Variant
+		Member As String
 	#tag EndProperty
 
 	#tag Property, Flags = &h0
-		ArrayStart As Integer = -1
-	#tag EndProperty
-
-	#tag Property, Flags = &h0
-		EolPos As Integer
-	#tag EndProperty
-
-	#tag Property, Flags = &h0
-		FirstChar As String
-	#tag EndProperty
-
-	#tag Property, Flags = &h0
-		FirstLine As String
-	#tag EndProperty
-
-	#tag Property, Flags = &h0
-		Pos As Integer
-	#tag EndProperty
-
-	#tag Property, Flags = &h0
-		R As Variant
+		Score As Double
 	#tag EndProperty
 
 
 	#tag ViewBehavior
-		#tag ViewProperty
-			Name="Arr()"
-			Group="Behavior"
-			Type="Integer"
-		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Index"
 			Visible=true
@@ -50,10 +40,20 @@ Private Class Placeholder
 			Type="Integer"
 		#tag EndViewProperty
 		#tag ViewProperty
+			Name="Member"
+			Group="Behavior"
+			Type="String"
+		#tag EndViewProperty
+		#tag ViewProperty
 			Name="Name"
 			Visible=true
 			Group="ID"
 			Type="String"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="Score"
+			Group="Behavior"
+			Type="Double"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Super"

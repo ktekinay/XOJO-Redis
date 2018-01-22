@@ -53,7 +53,7 @@ Protected Class CommandSpec
 		#tag ViewProperty
 			Name="Arity"
 			Group="Behavior"
-			Type="String"
+			Type="Integer"
 			EditorType="MultiLineEditor"
 		#tag EndViewProperty
 		#tag ViewProperty

@@ -124,7 +124,23 @@ Protected Module M_Redis
 		
 		RedisControl_MTC can be used in code directly too if you prefer not to
 		automatically connect.
+	#tag EndNote
+
+	#tag Note, Name = Documentation
+		See the Redis documentation at
 		
+		https://redis.io
+		
+		See the README at
+		
+		https://github.com/ktekinay/XOJO-Redis
+		
+	#tag EndNote
+
+	#tag Note, Name = License
+		See the license at 
+		
+		https://github.com/ktekinay/XOJO-Redis
 	#tag EndNote
 
 

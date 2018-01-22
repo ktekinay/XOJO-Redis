@@ -145,6 +145,11 @@ Inherits M_Redis.Redis_MTC
 			Type="Integer"
 		#tag EndViewProperty
 		#tag ViewProperty
+			Name="LatencyMs"
+			Group="Behavior"
+			Type="Double"
+		#tag EndViewProperty
+		#tag ViewProperty
 			Name="Left"
 			Visible=true
 			Group="Position"
@@ -191,6 +196,11 @@ Inherits M_Redis.Redis_MTC
 			Group="Position"
 			InitialValue="0"
 			Type="Integer"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="TrackLatency"
+			Group="Behavior"
+			Type="Boolean"
 		#tag EndViewProperty
 	#tag EndViewBehavior
 End Class

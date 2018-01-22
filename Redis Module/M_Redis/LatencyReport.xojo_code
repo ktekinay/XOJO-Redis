@@ -1,30 +1,41 @@
 #tag Class
-Protected Class SortedSetItem
+Protected Class LatencyReport
 	#tag Method, Flags = &h0
-		Sub Constructor(score As Double, member As String)
-		  self.Score = score
-		  self.Member = member
+		Sub Constructor()
+		  MinimumMs = val( "+INF" )
+		  MaximumMs = val( "-INF" )
 		  
 		End Sub
 	#tag EndMethod
 
-	#tag Method, Flags = &h0
-		Sub Operator_Convert(p As Pair)
-		  Constructor p.Left.DoubleValue, p.Right.StringValue
-		End Sub
-	#tag EndMethod
-
 
 	#tag Property, Flags = &h0
-		Member As String
+		AverageMs As Double
 	#tag EndProperty
 
 	#tag Property, Flags = &h0
-		Score As Double
+		MaximumMs As Double
+	#tag EndProperty
+
+	#tag Property, Flags = &h0
+		MinimumMs As Double
+	#tag EndProperty
+
+	#tag Property, Flags = &h0
+		Samples As Integer
+	#tag EndProperty
+
+	#tag Property, Flags = &h0
+		TotalSecs As Double
 	#tag EndProperty
 
 
 	#tag ViewBehavior
+		#tag ViewProperty
+			Name="AverageMs"
+			Group="Behavior"
+			Type="Double"
+		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Index"
 			Visible=true
@@ -40,13 +51,23 @@ Protected Class SortedSetItem
 			Type="Integer"
 		#tag EndViewProperty
 		#tag ViewProperty
+			Name="MaximumMs"
+			Group="Behavior"
+			Type="Double"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="MinimumMs"
+			Group="Behavior"
+			Type="Double"
+		#tag EndViewProperty
+		#tag ViewProperty
 			Name="Name"
 			Visible=true
 			Group="ID"
 			Type="String"
 		#tag EndViewProperty
 		#tag ViewProperty
-			Name="Score"
+			Name="Samples"
 			Group="Behavior"
 			Type="Integer"
 		#tag EndViewProperty
@@ -62,6 +83,11 @@ Protected Class SortedSetItem
 			Group="Position"
 			InitialValue="0"
 			Type="Integer"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="TotalSecs"
+			Group="Behavior"
+			Type="Double"
 		#tag EndViewProperty
 	#tag EndViewBehavior
 End Class
