@@ -13,6 +13,10 @@ Inherits Application
 
 
 	#tag Property, Flags = &h0
+		CommandDict As Dictionary
+	#tag EndProperty
+
+	#tag Property, Flags = &h0
 		RedisAddress As String = "localhost"
 	#tag EndProperty
 
@@ -41,6 +45,23 @@ Inherits Application
 
 
 	#tag ViewBehavior
+		#tag ViewProperty
+			Name="RedisAddress"
+			Group="Behavior"
+			InitialValue="localhost"
+			Type="String"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="RedisPassword"
+			Group="Behavior"
+			Type="String"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="RedisPort"
+			Group="Behavior"
+			InitialValue="6379"
+			Type="Integer"
+		#tag EndViewProperty
 	#tag EndViewBehavior
 End Class
 #tag EndClass

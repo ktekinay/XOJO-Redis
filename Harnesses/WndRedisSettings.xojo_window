@@ -258,6 +258,7 @@ Begin Window WndRedisSettings
       Width           =   289
    End
    Begin Timer TmrOpen
+      Enabled         =   True
       Index           =   -2147483648
       LockedInPosition=   False
       Mode            =   1
@@ -286,6 +287,7 @@ End
 		Sub TextChange()
 		  App.RedisPassword = me.Text
 		  
+		  App.CommandDict = nil
 		End Sub
 	#tag EndEvent
 #tag EndEvents
@@ -298,6 +300,7 @@ End
 		    App.RedisAddress = me.Text.Trim
 		  end if
 		  
+		  App.CommandDict = nil
 		End Sub
 	#tag EndEvent
 #tag EndEvents
@@ -313,6 +316,7 @@ End
 		    end if
 		  end if
 		  
+		  App.CommandDict = nil
 		End Sub
 	#tag EndEvent
 #tag EndEvents

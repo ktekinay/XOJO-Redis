@@ -19,6 +19,10 @@ Inherits TestGroup
 		  
 		  call r.Delete( r.Scan( "xut:*" ) )
 		  
+		  if App.CommandDict is nil then
+		    App.CommandDict = r.Command
+		  end if
+		  
 		End Sub
 	#tag EndEvent
 
