@@ -2,3 +2,4 @@
 *.xojo_uistate
 *.gz
 */*/Redis Harness.debug.app
+Harnesses/Console/RedisHarness.debug

@@ -1,30 +1,35 @@
 #tag Class
-Protected Class SortedSetItem
-	#tag Method, Flags = &h0
-		Sub Constructor(score As Double, member As String)
-		  self.Score = score
-		  self.Member = member
-		  
-		End Sub
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
-		Sub Operator_Convert(p As Pair)
-		  Constructor p.Left.DoubleValue, p.Right.StringValue
+Protected Class OptionParserException
+Inherits RuntimeException
+	#tag Method, Flags = &h1000
+		Sub Constructor(code As Integer = 1, msg As String)
+		  Me.ErrorNumber = code
+		  Me.Message = msg
 		End Sub
 	#tag EndMethod
 
 
-	#tag Property, Flags = &h0
-		Member As String
-	#tag EndProperty
-
-	#tag Property, Flags = &h0
-		Score As Double
-	#tag EndProperty
+	#tag Note, Name = Overview
+		Base exception for all `OptionParser` exceptions.
+		
+		It will be raised, however, in two primary situations
+		
+		1. Invalid use of the `Option` class, for example, you attempt to add
+		   a new option but do not give a short or long option name.
+		2. If the `OptionParser` has the `ExtrasRequired` parameter set and that
+		   value has not been met by the user.
+		
+		
+	#tag EndNote
 
 
 	#tag ViewBehavior
+		#tag ViewProperty
+			Name="ErrorNumber"
+			Group="Behavior"
+			InitialValue="0"
+			Type="Integer"
+		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Index"
 			Visible=true
@@ -40,7 +45,7 @@ Protected Class SortedSetItem
 			Type="Integer"
 		#tag EndViewProperty
 		#tag ViewProperty
-			Name="Member"
+			Name="Message"
 			Group="Behavior"
 			Type="String"
 			EditorType="MultiLineEditor"
@@ -52,9 +57,9 @@ Protected Class SortedSetItem
 			Type="String"
 		#tag EndViewProperty
 		#tag ViewProperty
-			Name="Score"
+			Name="Reason"
 			Group="Behavior"
-			Type="Double"
+			Type="Text"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Super"

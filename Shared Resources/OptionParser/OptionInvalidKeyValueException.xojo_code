@@ -1,30 +1,23 @@
 #tag Class
-Protected Class SortedSetItem
-	#tag Method, Flags = &h0
-		Sub Constructor(score As Double, member As String)
-		  self.Score = score
-		  self.Member = member
-		  
-		End Sub
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
-		Sub Operator_Convert(p As Pair)
-		  Constructor p.Left.DoubleValue, p.Right.StringValue
-		End Sub
-	#tag EndMethod
-
-
-	#tag Property, Flags = &h0
-		Member As String
-	#tag EndProperty
-
-	#tag Property, Flags = &h0
-		Score As Double
-	#tag EndProperty
+Protected Class OptionInvalidKeyValueException
+Inherits OptionParserException
+	#tag Note, Name = Overview
+		Raised by `OptionParser.Parse` when a value is not valid for the given key. For example, if a
+		`FileOption` requires that the file be readable and the parameter given is not readable, this
+		exception will be raised. Another example, say the `--age` parameter is an integer and the
+		`MinimumValue` and `MaximumValue` for the option is set to 1 and 99 but the user supplies
+		220, this exception will be raised.
+		
+	#tag EndNote
 
 
 	#tag ViewBehavior
+		#tag ViewProperty
+			Name="ErrorNumber"
+			Group="Behavior"
+			InitialValue="0"
+			Type="Integer"
+		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Index"
 			Visible=true
@@ -40,7 +33,7 @@ Protected Class SortedSetItem
 			Type="Integer"
 		#tag EndViewProperty
 		#tag ViewProperty
-			Name="Member"
+			Name="Message"
 			Group="Behavior"
 			Type="String"
 			EditorType="MultiLineEditor"
@@ -52,9 +45,9 @@ Protected Class SortedSetItem
 			Type="String"
 		#tag EndViewProperty
 		#tag ViewProperty
-			Name="Score"
+			Name="Reason"
 			Group="Behavior"
-			Type="Double"
+			Type="Text"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Super"

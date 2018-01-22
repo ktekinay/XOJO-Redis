@@ -1,30 +1,20 @@
 #tag Class
-Protected Class SortedSetItem
-	#tag Method, Flags = &h0
-		Sub Constructor(score As Double, member As String)
-		  self.Score = score
-		  self.Member = member
-		  
-		End Sub
-	#tag EndMethod
-
-	#tag Method, Flags = &h0
-		Sub Operator_Convert(p As Pair)
-		  Constructor p.Left.DoubleValue, p.Right.StringValue
-		End Sub
-	#tag EndMethod
-
-
-	#tag Property, Flags = &h0
-		Member As String
-	#tag EndProperty
-
-	#tag Property, Flags = &h0
-		Score As Double
-	#tag EndProperty
+Protected Class OptionUnrecognizedKeyException
+Inherits OptionParserException
+	#tag Note, Name = Overview
+		Raised by `OptionParser.Parse` when a option is supplied on the command line that `OptionParser` has not been maded aware of. i.e. the
+		user supplied a key the program is not prepared to handle.
+		
+	#tag EndNote
 
 
 	#tag ViewBehavior
+		#tag ViewProperty
+			Name="ErrorNumber"
+			Group="Behavior"
+			InitialValue="0"
+			Type="Integer"
+		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Index"
 			Visible=true
@@ -40,7 +30,7 @@ Protected Class SortedSetItem
 			Type="Integer"
 		#tag EndViewProperty
 		#tag ViewProperty
-			Name="Member"
+			Name="Message"
 			Group="Behavior"
 			Type="String"
 			EditorType="MultiLineEditor"
@@ -52,9 +42,9 @@ Protected Class SortedSetItem
 			Type="String"
 		#tag EndViewProperty
 		#tag ViewProperty
-			Name="Score"
+			Name="Reason"
 			Group="Behavior"
-			Type="Double"
+			Type="Text"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Super"
