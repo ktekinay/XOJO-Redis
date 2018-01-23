@@ -19,7 +19,7 @@ r = new Redis_MTC( "", "", 9999 ) // Custom port on localhost
 
 __Note__: If the class cannot connect on instantiation, it will raise an Exception.
 
-The other class, `RedisControl_MTC`, is meant to use as a control on a Window or similar. You must call `Connect` and can implement its additional events. It also has `DefaultAddress` and `DefaultPort` that can be filled in at design time.
+The other class, `RedisControl_MTC`, is meant to use as a control on a Window or similar. You must call `Connect` and can implement its additional events. It also has `DefaultAddress` and `DefaultPort` that can be filled in at design time through the Inspector.
 
 ## Methods and Functions
 
@@ -52,7 +52,7 @@ Results from `Execute` are always a Variant and it's up to you to interpret them
 
 If you prefer, you can use the `ResponseInPipeline` event to get waiting results. It would be most efficient to use `ReadPipeline` there but you could `FlushPipeline` instead.
 
-Using a Pipeline is more efficient than the send/wait approach, but not as convenient. In tests, no Pipeline could handle around 25k SET commands per second on a local server whereas 10 Pipelines could do around 300k per second. Pipeline results are "raw" and it's up to you to match them to the command that was issued to obtain them, and to interpret them. 
+Using a Pipeline is more efficient than the send/wait approach, but not as convenient. In tests, regular mode (no pipeline) could handle around 25k SET commands per second on a local server whereas 10 Pipelines could do around 340k per second. Pipeline results are "raw" and it's up to you to match them to the command that was issued to obtain them, and to interpret them. 
 
 Use `StartPipeline( cnt )` to change to Pipeline mode. Once in Pipeline mode, results from individual functions will be meaningless and can be ignored. Use `FlushPipeline( false )` to get the final results and turn off the Pipeline.
 
@@ -100,5 +100,6 @@ This project was designed and implemented by:
 
 ## Release Notes
 
-**1.0** (____, 2017)
+**1.0** (Jan. 22, 2018)
+
 - Initial release.
