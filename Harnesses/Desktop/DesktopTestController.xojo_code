@@ -15,6 +15,8 @@ Inherits TestController
 		  group.IncludeGroup = false
 		  group = new RedisPipelineBenchmarks( self )
 		  group.IncludeGroup = false
+		  group = new RedisServerTests( self )
+		  
 		End Sub
 	#tag EndEvent
 
