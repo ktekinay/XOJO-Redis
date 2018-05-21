@@ -10,8 +10,8 @@
 					AppliesTo = 0
 					Destination = 1
 					Subdirectory = 
-					FolderItem = Li4vLi4vQ29weSUyMEludG8lMjBQcm9qZWN0cy9yZWRpcy1wb3J0LTMxOTk5LW5vLXNhdmUuY29uZg==
-					FolderItem = Li4vLi4vQ29weSUyMEludG8lMjBQcm9qZWN0cy9SZWRpcyUyMFNlcnZlciUyME1hYy8=
+					FolderItem = Li4vLi4vLi4vU2hhcmVkJTIwUmVzb3VyY2VzL0NvcHklMjBJbnRvJTIwUHJvamVjdHMvUmVkaXMlMjBTZXJ2ZXIlMjBNYWMv
+					FolderItem = Li4vLi4vLi4vU2hhcmVkJTIwUmVzb3VyY2VzL0NvcHklMjBJbnRvJTIwUHJvamVjdHMvcmVkaXMtcG9ydC0zMTk5OS1uby1zYXZlLmNvbmY=
 				End
 			End
 			Begin BuildStepList Windows
