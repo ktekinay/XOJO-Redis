@@ -1,18 +1,5 @@
 #tag Class
 Class RedisServer_MTC
-	#tag Method, Flags = &h0
-		Sub Constructor(redisServer As FolderItem, config As FolderItem = Nil)
-		  if redisServer is nil then
-		    raise new NilObjectException
-		  end if
-		  
-		  ServerFile = redisServer
-		  ConfigFile = config
-		  
-		  
-		End Sub
-	#tag EndMethod
-
 	#tag Method, Flags = &h21
 		Private Sub Destructor()
 		  Stop
@@ -57,42 +44,49 @@ Class RedisServer_MTC
 		    AddHandler ServerShell.Completed, WeakAddressOf ServerShell_Completed
 		  end if
 		  
-		  if not IsRunning then
-		    mIsReady = false
-		    
-		    dim serverPath as string = ServerFile.ShellPath
-		    dim configPath as string = if( ConfigFile is nil, "", configFile.ShellPath )
-		    
-		    dim logLevelString as string
-		    select case LogLevel
-		    case LogLevels.Debug
-		      logLevelString = "debug"
-		    case LogLevels.Notice
-		      logLevelString = "notice"
-		    case LogLevels.Verbose
-		      logLevelString = "verbose"
-		    case LogLevels.Warning
-		      logLevelString = "warning"
-		    end select
-		    
-		    #if TargetWindows then
-		      
-		      #pragma error "Finish this!!"
-		      
-		    #else
-		      
-		      dim usePort as integer = if( Port > 0, Port, 0 )
-		      
-		      dim paramString as string = _
-		      if( configPath <> "", configPath + " ", "" ) + _
-		      if( LogLevelString <> "", "--loglevel " + logLevelString + " ", "" ) + _
-		      if( usePort <> 0, "--port " + str( usePort ) + " ", "" ) + _
-		      ParametersToString
-		      paramString = paramString.Trim
-		      
-		      ServerShell.Execute serverPath, paramString
-		    #endif
+		  if IsRunning then
+		    raise new RedisException( "This server is already running" )
 		  end if
+		  
+		  if RedisServerFile is nil then
+		    raise new RedisException( "No redis server executable specified" )
+		  end if
+		  
+		  mIsReady = false
+		  
+		  dim serverPath as string = RedisServerFile.ShellPath
+		  dim configPath as string = if( ConfigFile is nil, "", ConfigFile.ShellPath )
+		  
+		  dim logLevelString as string
+		  select case LogLevel
+		  case LogLevels.Debug
+		    logLevelString = "debug"
+		  case LogLevels.Notice
+		    logLevelString = "notice"
+		  case LogLevels.Verbose
+		    logLevelString = "verbose"
+		  case LogLevels.Warning
+		    logLevelString = "warning"
+		  end select
+		  
+		  #if TargetWindows then
+		    
+		    #pragma error "Finish this!!"
+		    
+		  #else
+		    
+		    dim usePort as integer = if( Port > 0, Port, 0 )
+		    
+		    dim paramString as string = _
+		    if( configPath <> "", configPath + " ", "" ) + _
+		    if( LogLevelString <> "", "--loglevel " + logLevelString + " ", "" ) + _
+		    if( usePort <> 0, "--port " + str( usePort ) + " ", "" ) + _
+		    ParametersToString
+		    paramString = paramString.Trim
+		    
+		    ServerShell.Execute serverPath, paramString
+		  #endif
+		  
 		End Sub
 	#tag EndMethod
 
@@ -137,8 +131,8 @@ Class RedisServer_MTC
 	#tag EndHook
 
 
-	#tag Property, Flags = &h21
-		Private ConfigFile As FolderItem
+	#tag Property, Flags = &h0
+		ConfigFile As FolderItem
 	#tag EndProperty
 
 	#tag ComputedProperty, Flags = &h0
@@ -267,8 +261,8 @@ Class RedisServer_MTC
 		Port As Integer = kDefaultPort
 	#tag EndProperty
 
-	#tag Property, Flags = &h21
-		Private ServerFile As FolderItem
+	#tag Property, Flags = &h0
+		RedisServerFile As FolderItem
 	#tag EndProperty
 
 	#tag Property, Flags = &h21

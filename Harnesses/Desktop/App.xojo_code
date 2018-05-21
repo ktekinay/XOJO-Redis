@@ -19,7 +19,10 @@ Inherits Application
 		  dim serverFile as FolderItem = App.ResourcesFolder.Child( "Redis Server Mac" ).Child( "redis-server" )
 		  dim configFile as FolderItem = App.ResourcesFolder.Child( "redis-port-31999-no-save.conf" )
 		  
-		  dim server as new RedisServer_MTC( serverFile, configFile )
+		  dim server as new RedisServer_MTC
+		  server.RedisServerFile = serverFile
+		  server.ConfigFile = configFile
+		  
 		  return server
 		  
 		End Function
