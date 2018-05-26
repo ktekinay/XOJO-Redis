@@ -58,6 +58,15 @@ Inherits TestGroup
 		End Sub
 	#tag EndMethod
 
+	#tag Method, Flags = &h0
+		Sub VersionTest()
+		  dim s as RedisServer_MTC = App.NewLocalServer
+		  dim v as string = s.RedisVersion
+		  Assert.Message v.ToText
+		  Assert.AreNotEqual "", v.ToText, "No version info"
+		End Sub
+	#tag EndMethod
+
 
 	#tag Property, Flags = &h21
 		Private Server As RedisServer_MTC

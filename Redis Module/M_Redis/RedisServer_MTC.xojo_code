@@ -8,6 +8,20 @@ Class RedisServer_MTC
 		End Sub
 	#tag EndMethod
 
+	#tag Method, Flags = &h0
+		Function RedisVersion() As String
+		  if RedisServerFile is nil then
+		    return ""
+		  end if
+		  
+		  dim sh as new Shell
+		  sh.Execute RedisServerFile.ShellPath, "--version"
+		  dim version as string = sh.Result.DefineEncoding( Encodings.UTF8 ).Trim
+		  return version
+		  
+		End Function
+	#tag EndMethod
+
 	#tag Method, Flags = &h21
 		Private Sub ServerShell_Completed(sender As Shell)
 		  #pragma unused sender
@@ -91,10 +105,13 @@ Class RedisServer_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Sub Stop()
+		Sub Stop(force As Boolean = False)
 		  if IsRunning then
 		    ServerShell.Write ChrB( 3 )
 		    ServerShell.Poll
+		    if force then
+		      ServerShell.Close
+		    end if
 		  end if
 		  
 		End Sub
@@ -242,7 +259,13 @@ Class RedisServer_MTC
 			    
 			    builder.Append thisKey
 			    
-			    dim thisValue as string = values( i )
+			    dim thisValue as string
+			    if values( i ).Type = Variant.TypeObject and values( i ) isa FolderItem then
+			      thisValue = FolderItem( values( i ) ).NativePath
+			    else
+			      thisValue = values( i ).StringValue
+			    end if
+			    
 			    if thisValue <> "" then
 			      thisValue = "'" + thisValue.ReplaceAll( "\", "'\\'" ).ReplaceAll( "'", "'\''" ) + "'"
 			      builder.Append thisValue
@@ -258,7 +281,7 @@ Class RedisServer_MTC
 	#tag EndComputedProperty
 
 	#tag Property, Flags = &h0
-		Port As Integer = kDefaultPort
+		Port As Integer = 0
 	#tag EndProperty
 
 	#tag Property, Flags = &h0
