@@ -1,11 +1,21 @@
 #tag Menu
 Begin Menu MainMenuBar
-   Begin MenuItem FileMenu
+   Begin MenuItem ServerMenu
       SpecialMenu = 0
-      Text = "&File"
+      Text = "&Server"
       Index = -2147483648
       AutoEnable = True
       Visible = True
+      Begin MenuItem ServerStart
+         SpecialMenu = 0
+         Text = "Start"
+         Index = -2147483648
+         ShortcutKey = "S"
+         Shortcut = "Cmd+S"
+         MenuModifier = True
+         AutoEnable = True
+         Visible = True
+      End
       Begin QuitMenuItem FileQuit
          SpecialMenu = 0
          Text = "#App.kFileQuit"

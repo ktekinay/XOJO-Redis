@@ -64,8 +64,8 @@ Begin Window WndServer
       TabStop         =   True
       Text            =   ""
       TextColor       =   &c00000000
-      TextFont        =   "System"
-      TextSize        =   0.0
+      TextFont        =   "#kFontMono"
+      TextSize        =   10.0
       TextUnit        =   0
       Top             =   66
       Transparent     =   False
@@ -77,6 +77,9 @@ Begin Window WndServer
    Begin M_Redis.RedisServer_MTC objServer
       ErrorCode       =   0
       Index           =   -2147483648
+      IsReady         =   False
+      IsRunning       =   False
+      LastMessage     =   ""
       LockedInPosition=   False
       LogLevel        =   "LogLevels.Default"
       Port            =   0
@@ -91,7 +94,7 @@ Begin Window WndServer
       BackColor       =   &cFFFFFF00
       Bold            =   False
       Border          =   True
-      CueText         =   ""
+      CueText         =   "0 for default"
       DataField       =   ""
       DataSource      =   ""
       Enabled         =   True
@@ -114,7 +117,7 @@ Begin Window WndServer
       TabIndex        =   1
       TabPanelIndex   =   0
       TabStop         =   True
-      Text            =   "#Redis_MTC.kDefaultPort"
+      Text            =   ""
       TextColor       =   &c00000000
       TextFont        =   "System"
       TextSize        =   0.0
@@ -134,7 +137,7 @@ Begin Window WndServer
       Enabled         =   True
       Height          =   20
       HelpTag         =   ""
-      Index           =   -2147483648
+      Index           =   0
       InitialParent   =   ""
       Italic          =   False
       Left            =   20
@@ -193,6 +196,73 @@ Begin Window WndServer
       Visible         =   True
       Width           =   80
    End
+   Begin PopupMenu pupLogLevel
+      AutoDeactivate  =   True
+      Bold            =   False
+      DataField       =   ""
+      DataSource      =   ""
+      Enabled         =   True
+      Height          =   20
+      HelpTag         =   ""
+      Index           =   -2147483648
+      InitialParent   =   ""
+      InitialValue    =   ""
+      Italic          =   False
+      Left            =   355
+      ListIndex       =   0
+      LockBottom      =   False
+      LockedInPosition=   False
+      LockLeft        =   True
+      LockRight       =   False
+      LockTop         =   True
+      Scope           =   2
+      TabIndex        =   4
+      TabPanelIndex   =   0
+      TabStop         =   True
+      TextFont        =   "System"
+      TextSize        =   0.0
+      TextUnit        =   0
+      Top             =   20
+      Transparent     =   False
+      Underline       =   False
+      Visible         =   True
+      Width           =   119
+   End
+   Begin Label Labels
+      AutoDeactivate  =   True
+      Bold            =   False
+      DataField       =   ""
+      DataSource      =   ""
+      Enabled         =   True
+      Height          =   20
+      HelpTag         =   ""
+      Index           =   1
+      InitialParent   =   ""
+      Italic          =   False
+      Left            =   246
+      LockBottom      =   False
+      LockedInPosition=   False
+      LockLeft        =   True
+      LockRight       =   False
+      LockTop         =   True
+      Multiline       =   False
+      Scope           =   2
+      Selectable      =   False
+      TabIndex        =   5
+      TabPanelIndex   =   0
+      TabStop         =   True
+      Text            =   "Log Level:"
+      TextAlign       =   0
+      TextColor       =   &c00000000
+      TextFont        =   "System"
+      TextSize        =   0.0
+      TextUnit        =   0
+      Top             =   21
+      Transparent     =   False
+      Underline       =   False
+      Visible         =   True
+      Width           =   97
+   End
    Begin Timer tmrUpdateControls
       Index           =   -2147483648
       LockedInPosition=   False
@@ -205,39 +275,62 @@ End
 #tag EndWindow
 
 #tag WindowCode
-	#tag Property, Flags = &h21
-		Private LastIsRunning As Boolean
-	#tag EndProperty
-
-
-	#tag Constant, Name = kLabelStart, Type = String, Dynamic = False, Default = \"Start", Scope = Private
-	#tag EndConstant
-
-	#tag Constant, Name = kLabelStop, Type = String, Dynamic = False, Default = \"Stop", Scope = Private
-	#tag EndConstant
-
-
-#tag EndWindowCode
-
-#tag Events btnStart
 	#tag Event
-		Sub Action()
+		Function CancelClose(appQuitting as Boolean) As Boolean
 		  if objServer.IsRunning then
-		    objServer.Stop
-		  else
-		    fldOut.Text = ""
+		    dim dlg as new MessageDialog
+		    dlg.ActionButton.Caption = "Stop"
+		    dlg.CancelButton.Visible = true
+		    dlg.AlternateActionButton.Caption = "Force"
+		    dlg.AlternateActionButton.Visible = true
+		    dlg.Message = "The server is running. Stop it?"
+		    dlg.Explanation = "Depending the config, the values might not auto-save."
 		    
-		    objServer.RedisServerFile = nil
-		    objServer.Port = fldPort.Text.Val
-		    objServer.Start
+		    dim btn as MessageDialogButton = dlg.ShowModalWithin( self )
+		    if btn is dlg.CancelButton then
+		      return true
+		    elseif btn is dlg.AlternateActionButton then
+		      objServer.Stop true
+		      return false
+		    else
+		      if appQuitting then
+		        ShouldQuit = true
+		      else
+		        ShouldClose = true
+		      end if
+		      objServer.Stop
+		      return true
+		    end if
 		  end if
+		End Function
+	#tag EndEvent
+
+	#tag Event
+		Sub EnableMenuItems()
+		  UpdateControls
+		  ServerStart.Text = btnStart.Caption
+		End Sub
+	#tag EndEvent
+
+	#tag Event
+		Sub Open()
+		  objServer.ConfigFile = App.RedisDefaultConfigFile
 		  
 		End Sub
 	#tag EndEvent
-#tag EndEvents
-#tag Events tmrUpdateControls
-	#tag Event
-		Sub Action()
+
+
+	#tag MenuHandler
+		Function ServerStart() As Boolean Handles ServerStart.Action
+			btnStart.Push
+			return true
+			
+		End Function
+	#tag EndMenuHandler
+
+
+	#tag Method, Flags = &h21
+		Private Sub UpdateControls()
 		  if objServer is nil or objServer.IsRunning = LastIsRunning then
 		    return
 		  end if
@@ -252,6 +345,112 @@ End
 		    fldPort.Enabled = true
 		  end if
 		  
+		  pupLogLevel.Enabled = fldPort.Enabled
+		End Sub
+	#tag EndMethod
+
+
+	#tag Property, Flags = &h21
+		Private LastIsRunning As Boolean
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private ShouldClose As Boolean
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private ShouldQuit As Boolean
+	#tag EndProperty
+
+
+	#tag Constant, Name = kFontMono, Type = String, Dynamic = False, Default = \"", Scope = Private
+		#Tag Instance, Platform = Mac OS, Language = Default, Definition  = \"Monaco"
+	#tag EndConstant
+
+	#tag Constant, Name = kLabelStart, Type = String, Dynamic = False, Default = \"Start", Scope = Private
+	#tag EndConstant
+
+	#tag Constant, Name = kLabelStop, Type = String, Dynamic = False, Default = \"Stop", Scope = Private
+	#tag EndConstant
+
+
+#tag EndWindowCode
+
+#tag Events objServer
+	#tag Event
+		Sub DataAvailable(data As String)
+		  fldOut.AppendText data
+		  fldOut.ScrollPosition = 1000000000
+		  
+		End Sub
+	#tag EndEvent
+	#tag Event
+		Sub Started()
+		  UpdateControls
+		End Sub
+	#tag EndEvent
+	#tag Event
+		Sub Stopped()
+		  if ShouldClose then
+		    self.Close
+		  elseif ShouldQuit then
+		    Quit
+		  else
+		    UpdateControls
+		  end if
+		  
+		End Sub
+	#tag EndEvent
+#tag EndEvents
+#tag Events btnStart
+	#tag Event
+		Sub Action()
+		  if objServer.IsRunning then
+		    objServer.Stop Keyboard.OptionKey
+		  else
+		    fldOut.Text = ""
+		    
+		    dim params as new Dictionary
+		    params.Value( "dir" ) = App.DataFolder
+		    
+		    objServer.RedisServerFile = App.RedisServerFile
+		    objServer.Port = fldPort.Text.Val
+		    objServer.LogLevel = pupLogLevel.RowTag( pupLogLevel.ListIndex )
+		    objServer.Parameters = params
+		    objServer.Start
+		  end if
+		  
+		  UpdateControls
+		End Sub
+	#tag EndEvent
+#tag EndEvents
+#tag Events pupLogLevel
+	#tag Event
+		Sub Open()
+		  me.AddRow "Default"
+		  me.RowTag( 0 ) = RedisServer_MTC.LogLevels.Default
+		  
+		  me.AddRow "Debug"
+		  me.RowTag( 1 ) = RedisServer_MTC.LogLevels.Debug
+		  
+		  me.AddRow "Verbose"
+		  me.RowTag( 2 ) = RedisServer_MTC.LogLevels.Verbose
+		  
+		  me.AddRow "Notice"
+		  me.RowTag( 3 ) = RedisServer_MTC.LogLevels.Notice
+		  
+		  me.AddRow "Warning"
+		  me.RowTag( 4 ) = RedisServer_MTC.LogLevels.Warning
+		  
+		  me.ListIndex = 0
+		  
+		End Sub
+	#tag EndEvent
+#tag EndEvents
+#tag Events tmrUpdateControls
+	#tag Event
+		Sub Action()
+		  UpdateControls
 		End Sub
 	#tag EndEvent
 #tag EndEvents
