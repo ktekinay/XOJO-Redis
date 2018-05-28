@@ -11,6 +11,7 @@
 					Destination = 1
 					Subdirectory = 
 					FolderItem = Li4vLi4vU2hhcmVkJTIwUmVzb3VyY2VzL0NvcHklMjBJbnRvJTIwUHJvamVjdHMvUmVkaXMlMjBTZXJ2ZXIlMjBNYWMv
+					FolderItem = Li4vLi4vU2hhcmVkJTIwUmVzb3VyY2VzL0NvcHklMjBJbnRvJTIwUHJvamVjdHMvcmVkaXMtc2VydmVyLWd1aS5jb25m
 				End
 			End
 			Begin BuildStepList Windows

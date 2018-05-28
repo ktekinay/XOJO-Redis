@@ -53,7 +53,7 @@ Inherits Application
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
-			  return RedisServerFile.Parent.Child( "redis-default.conf" )
+			  return App.ResourcesFolder.Child( "redis-server-gui.conf" )
 			  
 			End Get
 		#tag EndGetter
