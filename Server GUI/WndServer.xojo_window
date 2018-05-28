@@ -18,12 +18,12 @@ Begin Window WndServer
    MaxWidth        =   32000
    MenuBar         =   848173055
    MenuBarVisible  =   True
-   MinHeight       =   64
+   MinHeight       =   300
    MinimizeButton  =   True
-   MinWidth        =   64
+   MinWidth        =   400
    Placement       =   0
    Resizeable      =   True
-   Title           =   "Untitled"
+   Title           =   "Redis Server"
    Visible         =   True
    Width           =   858
    Begin TextArea fldOut
@@ -38,7 +38,7 @@ Begin Window WndServer
       DataSource      =   ""
       Enabled         =   True
       Format          =   ""
-      Height          =   428
+      Height          =   401
       HelpTag         =   ""
       HideSelection   =   True
       Index           =   -2147483648
@@ -67,7 +67,7 @@ Begin Window WndServer
       TextFont        =   "#kFontMono"
       TextSize        =   10.0
       TextUnit        =   0
-      Top             =   66
+      Top             =   93
       Transparent     =   False
       Underline       =   False
       UseFocusRing    =   True
@@ -208,7 +208,7 @@ Begin Window WndServer
       InitialParent   =   ""
       InitialValue    =   ""
       Italic          =   False
-      Left            =   355
+      Left            =   100
       ListIndex       =   0
       LockBottom      =   False
       LockedInPosition=   False
@@ -222,7 +222,7 @@ Begin Window WndServer
       TextFont        =   "System"
       TextSize        =   0.0
       TextUnit        =   0
-      Top             =   20
+      Top             =   52
       Transparent     =   False
       Underline       =   False
       Visible         =   True
@@ -239,7 +239,7 @@ Begin Window WndServer
       Index           =   1
       InitialParent   =   ""
       Italic          =   False
-      Left            =   246
+      Left            =   20
       LockBottom      =   False
       LockedInPosition=   False
       LockLeft        =   True
@@ -257,7 +257,7 @@ Begin Window WndServer
       TextFont        =   "System"
       TextSize        =   0.0
       TextUnit        =   0
-      Top             =   21
+      Top             =   53
       Transparent     =   False
       Underline       =   False
       Visible         =   True
@@ -279,30 +279,50 @@ End
 		Function CancelClose(appQuitting as Boolean) As Boolean
 		  if objServer.IsRunning then
 		    dim dlg as new MessageDialog
-		    dlg.ActionButton.Caption = "Stop"
+		    dlg.ActionButton.Caption = "&Stop"
 		    dlg.CancelButton.Visible = true
-		    dlg.AlternateActionButton.Caption = "Force"
+		    dlg.AlternateActionButton.Caption = "&Hide"
 		    dlg.AlternateActionButton.Visible = true
-		    dlg.Message = "The server is running. Stop it?"
+		    dlg.Message = "The server is running. Stop it or just hide the window?"
 		    dlg.Explanation = "Depending the config, the values might not auto-save."
 		    
 		    dim btn as MessageDialogButton = dlg.ShowModalWithin( self )
 		    if btn is dlg.CancelButton then
 		      return true
 		    elseif btn is dlg.AlternateActionButton then
-		      objServer.Stop true
-		      return false
+		      App.Hide
+		      return true
 		    else
 		      if appQuitting then
 		        ShouldQuit = true
 		      else
 		        ShouldClose = true
 		      end if
-		      objServer.Stop
+		      btnStart.Push
 		      return true
 		    end if
 		  end if
 		End Function
+	#tag EndEvent
+
+	#tag Event
+		Function DragEnter(obj As DragItem, action As Integer) As Boolean
+		  #pragma unused action
+		  
+		  if not obj.FolderItemAvailable then
+		    return true
+		  end if
+		  
+		End Function
+	#tag EndEvent
+
+	#tag Event
+		Sub DropObject(obj As DragItem, action As Integer)
+		  #pragma unused action
+		  
+		  OpenDocument obj.FolderItem
+		  
+		End Sub
 	#tag EndEvent
 
 	#tag Event
@@ -314,8 +334,12 @@ End
 
 	#tag Event
 		Sub Open()
+		  self.AcceptFileDrop ConfFileType.Config
+		  
+		  objServer.RedisServerFile = App.RedisServerFile
 		  objServer.ConfigFile = App.RedisDefaultConfigFile
 		  
+		  WndServer.Title = objServer.RedisVersion
 		End Sub
 	#tag EndEvent
 
@@ -328,6 +352,31 @@ End
 		End Function
 	#tag EndMenuHandler
 
+
+	#tag Method, Flags = &h0
+		Sub OpenDocument(configFile As FolderItem)
+		  if objServer.IsRunning then
+		    dim dlg as new MessageDialog
+		    dlg.Message = "Reload with new config file?"
+		    dlg.ActionButton.Caption = "Reload"
+		    dlg.CancelButton.Visible = true
+		    
+		    dim btn as MessageDialogButton = dlg.ShowModalWithin( self )
+		    if btn = dlg.CancelButton then
+		      return
+		    end if
+		  end if
+		  
+		  objServer.ConfigFile = configFile
+		  
+		  if objServer.IsRunning then
+		    ShouldReload = true
+		  end if
+		  
+		  btnStart.Push
+		  
+		End Sub
+	#tag EndMethod
 
 	#tag Method, Flags = &h21
 		Private Sub UpdateControls()
@@ -360,6 +409,10 @@ End
 
 	#tag Property, Flags = &h21
 		Private ShouldQuit As Boolean
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private ShouldReload As Boolean
 	#tag EndProperty
 
 
@@ -397,6 +450,11 @@ End
 		    Quit
 		  else
 		    UpdateControls
+		    
+		    if ShouldReload then
+		      ShouldReload = false
+		      btnStart.Push
+		    end if
 		  end if
 		  
 		End Sub
@@ -406,18 +464,17 @@ End
 	#tag Event
 		Sub Action()
 		  if objServer.IsRunning then
-		    objServer.Stop Keyboard.OptionKey
+		    dim forceIt as boolean = Keyboard.AsyncOptionKey or KeyBoard.AsyncAltKey
+		    objServer.Stop forceIt
 		  else
 		    fldOut.Text = ""
 		    
-		    dim params as new Dictionary
-		    params.Value( "dir" ) = App.DataFolder
-		    
-		    objServer.RedisServerFile = App.RedisServerFile
 		    objServer.Port = fldPort.Text.Val
 		    objServer.LogLevel = pupLogLevel.RowTag( pupLogLevel.ListIndex )
-		    objServer.Parameters = params
+		    objServer.DirectoryFolder = App.DataFolder
 		    objServer.Start
+		    
+		    fldOut.AppendText "$ " + objServer.LaunchCommand + EndOfLine + EndOfLine
 		  end if
 		  
 		  UpdateControls

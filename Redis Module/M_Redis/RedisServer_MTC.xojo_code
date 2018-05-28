@@ -36,7 +36,7 @@ Class RedisServer_MTC
 		Private Sub ServerShell_DataAvailable(sender As Shell)
 		  const kReadyMarker as string = "Server initialized"
 		  
-		  dim stuff as string = sender.ReadAll.DefineEncoding( Encodings.UTF8 ).Trim
+		  dim stuff as string = sender.ReadAll.DefineEncoding( Encodings.UTF8 )
 		  
 		  if stuff.InStr( kReadyMarker ) <> 0 then
 		    mIsReady = true
@@ -95,9 +95,11 @@ Class RedisServer_MTC
 		    if( configPath <> "", configPath + " ", "" ) + _
 		    if( LogLevelString <> "", "--loglevel " + logLevelString + " ", "" ) + _
 		    if( usePort <> 0, "--port " + str( usePort ) + " ", "" ) + _
+		    if( DirectoryFolder isa object, "--dir " + DirectoryFolder.ShellPath, "") + _
 		    ParametersToString
 		    paramString = paramString.Trim
 		    
+		    mLaunchCommand = serverPath + " " + paramString
 		    ServerShell.Execute serverPath, paramString
 		  #endif
 		  
@@ -152,6 +154,10 @@ Class RedisServer_MTC
 		ConfigFile As FolderItem
 	#tag EndProperty
 
+	#tag Property, Flags = &h0
+		DirectoryFolder As FolderItem
+	#tag EndProperty
+
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
@@ -199,6 +205,15 @@ Class RedisServer_MTC
 		LastMessage As String
 	#tag EndComputedProperty
 
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  Return mLaunchCommand
+			End Get
+		#tag EndGetter
+		LaunchCommand As String
+	#tag EndComputedProperty
+
 	#tag Property, Flags = &h0
 		LogLevel As LogLevels = LogLevels.Default
 	#tag EndProperty
@@ -209,6 +224,10 @@ Class RedisServer_MTC
 
 	#tag Property, Flags = &h21
 		Attributes( hidden ) Private mLastMessage As String
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Attributes( hidden ) Private mLaunchCommand As String
 	#tag EndProperty
 
 	#tag Property, Flags = &h0

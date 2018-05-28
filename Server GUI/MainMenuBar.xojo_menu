@@ -16,6 +16,16 @@ Begin Menu MainMenuBar
          AutoEnable = True
          Visible = True
       End
+      Begin MenuItem ServerShowHide
+         SpecialMenu = 0
+         Text = "#App.kServerHide"
+         Index = -2147483648
+         ShortcutKey = "H"
+         Shortcut = "Cmd+H"
+         MenuModifier = True
+         AutoEnable = True
+         Visible = True
+      End
       Begin QuitMenuItem FileQuit
          SpecialMenu = 0
          Text = "#App.kFileQuit"

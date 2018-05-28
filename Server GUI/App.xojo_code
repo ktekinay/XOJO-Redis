@@ -2,36 +2,103 @@
 Protected Class App
 Inherits Application
 	#tag Event
-		Sub Open()
-		  AutoQuit = true
-		  
-		  //
-		  // Copy the redis executable to app data
-		  //
-		  
-		  dim resource as FolderItem = ResourcesFolder.Child( "Redis Server Mac" )
-		  dim sourceServer as FolderItem
-		  
-		  #if TargetMacOS then
-		    sourceServer = resource.Child( kServerFileName )
-		  #endif
-		  
-		  dim dataServer as FolderItem = RedisServerFile
-		  if dataServer.Exists then
+		Sub Activate()
+		  WndServer.Show
+		End Sub
+	#tag EndEvent
+
+	#tag Event
+		Sub EnableMenuItems()
+		  if WndServer.Visible then
+		    ServerShowHide.Text = kServerHide
 		  else
-		    sourceServer.CopyFileTo dataServer
-		  end if
-		  
-		  dim dataConfig as FolderItem = RedisDefaultConfigFile
-		  dim resourceConfig as FolderItem = resource.Child( "redis-default.conf" )
-		  if not dataConfig.Exists or dataConfig.ModificationDate < resourceConfig.ModificationDate then
-		    dataConfig.Delete
-		    dataConfig = new FolderItem( dataConfig )
-		    resourceConfig.CopyFileTo dataConfig
+		    ServerShowHide.Text = kServerShow
 		  end if
 		  
 		End Sub
 	#tag EndEvent
+
+	#tag Event
+		Function HandleAppleEvent(theEvent As AppleEvent, eventClass As String, eventID As String) As Boolean
+		  #pragma unused theEvent
+		  
+		  if eventClass = "aevt" and eventID = "rapp" then
+		    WndServer.Show
+		    return true
+		  end if
+		  
+		End Function
+	#tag EndEvent
+
+	#tag Event
+		Sub Open()
+		  AutoQuit = true
+		  
+		End Sub
+	#tag EndEvent
+
+	#tag Event
+		Sub OpenDocument(item As FolderItem)
+		  WndServer.Show
+		  WndServer.OpenDocument item
+		  
+		End Sub
+	#tag EndEvent
+
+
+	#tag MenuHandler
+		Function ServerShowHide() As Boolean Handles ServerShowHide.Action
+			if WndServer.Visible then
+			Hide
+			else
+			WndServer.Show
+			end if
+			
+			return true
+			
+		End Function
+	#tag EndMenuHandler
+
+
+	#tag Method, Flags = &h0
+		Function GetPID() As Integer
+		  // This code gets the current process ID and illustrates soft declares 
+		  // for macOS, Windows, and Linux. 
+		  // In addition, it illustrates the use of the Alias command so that
+		  // the same function name can be used in Xojo to call the OS function.
+		  #If TargetMacOS Then
+		    // This is not the same as a Mac OS PSN.
+		    Soft Declare Function GetProcessID  Lib "libc.dylib" Alias "getpid" As Integer
+		  #EndIf
+		  
+		  #If TargetWindows Then
+		    Soft Declare Function GetProcessID Lib "Kernel32" Alias "GetCurrentProcessId" As Integer
+		  #EndIf
+		  
+		  #If TargetLinux Then
+		    Soft Declare Function GetProcessID Lib "libc.so" Alias "getpid" As Integer
+		  #EndIf
+		  
+		  // This calls GetProcessID as defined for the OS.
+		  Return GetProcessID
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub Hide()
+		  #if TargetMacOS then
+		    dim script as string = _
+		    "tell application ""System Events"" to set visible of (first process whose unix id is " + _
+		    str( GetPID ) + ") to false"
+		    dim sh as new Shell
+		    sh.Execute "osascript -e '" + script + "'"
+		  #else
+		    WndServer.Visible = false
+		  #endif
+		  
+		  
+		End Sub
+	#tag EndMethod
 
 
 	#tag ComputedProperty, Flags = &h0
@@ -63,10 +130,14 @@ Inherits Application
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
-			  #if TargetMacOS or TargetLinux then
-			    return App.DataFolder.Child( kServerFileName )
+			  dim server as FolderItem
+			  
+			  #if TargetMacOS then
+			    dim resource as FolderItem = ResourcesFolder.Child( "Redis Server Mac" )
+			    server = resource.Child( kServerFileName )
 			  #endif
 			  
+			  return server
 			End Get
 		#tag EndGetter
 		RedisServerFile As FolderItem
@@ -102,6 +173,12 @@ Inherits Application
 	#tag EndConstant
 
 	#tag Constant, Name = kServerFileName, Type = String, Dynamic = False, Default = \"redis-server", Scope = Public
+	#tag EndConstant
+
+	#tag Constant, Name = kServerHide, Type = String, Dynamic = False, Default = \"Hide", Scope = Public
+	#tag EndConstant
+
+	#tag Constant, Name = kServerShow, Type = String, Dynamic = False, Default = \"Show", Scope = Public
 	#tag EndConstant
 
 
