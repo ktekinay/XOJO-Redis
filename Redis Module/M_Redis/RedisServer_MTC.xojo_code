@@ -95,7 +95,7 @@ Class RedisServer_MTC
 		    if( configPath <> "", configPath + " ", "" ) + _
 		    if( LogLevelString <> "", "--loglevel " + logLevelString + " ", "" ) + _
 		    if( usePort <> 0, "--port " + str( usePort ) + " ", "" ) + _
-		    if( DirectoryFolder isa object, "--dir " + DirectoryFolder.ShellPath, "") + _
+		    if( WorkingDirectory isa object, "--dir " + WorkingDirectory.ShellPath, "") + _
 		    ParametersToString
 		    paramString = paramString.Trim
 		    
@@ -152,10 +152,6 @@ Class RedisServer_MTC
 
 	#tag Property, Flags = &h0
 		ConfigFile As FolderItem
-	#tag EndProperty
-
-	#tag Property, Flags = &h0
-		DirectoryFolder As FolderItem
 	#tag EndProperty
 
 	#tag ComputedProperty, Flags = &h0
@@ -311,6 +307,10 @@ Class RedisServer_MTC
 		Private ServerShell As Shell
 	#tag EndProperty
 
+	#tag Property, Flags = &h0
+		WorkingDirectory As FolderItem
+	#tag EndProperty
+
 
 	#tag Constant, Name = kDefaultPort, Type = Double, Dynamic = False, Default = \"6379", Scope = Public
 	#tag EndConstant
@@ -399,6 +399,12 @@ Class RedisServer_MTC
 			Name="IsReady"
 			Group="Behavior"
 			Type="Boolean"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="LaunchCommand"
+			Group="Behavior"
+			Type="String"
+			EditorType="MultiLineEditor"
 		#tag EndViewProperty
 	#tag EndViewBehavior
 End Class

@@ -471,7 +471,7 @@ End
 		    
 		    objServer.Port = fldPort.Text.Val
 		    objServer.LogLevel = pupLogLevel.RowTag( pupLogLevel.ListIndex )
-		    objServer.DirectoryFolder = App.DataFolder
+		    objServer.WorkingDirectory = App.DataFolder
 		    objServer.Start
 		    
 		    fldOut.AppendText "$ " + objServer.LaunchCommand + EndOfLine + EndOfLine
