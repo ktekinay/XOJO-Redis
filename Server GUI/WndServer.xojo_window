@@ -65,7 +65,7 @@ Begin Window WndServer
       Text            =   ""
       TextColor       =   &c00000000
       TextFont        =   "#kFontMono"
-      TextSize        =   10.0
+      TextSize        =   11.0
       TextUnit        =   0
       Top             =   93
       Transparent     =   False
@@ -75,13 +75,17 @@ Begin Window WndServer
       Width           =   858
    End
    Begin M_Redis.RedisServer_MTC objServer
+      ConnectedPort   =   0
+      DBFilename      =   ""
       ErrorCode       =   0
       Index           =   -2147483648
       IsReady         =   False
       IsRunning       =   False
       LastMessage     =   ""
+      LaunchCommand   =   ""
       LockedInPosition=   False
       LogLevel        =   "LogLevels.Default"
+      PID             =   ""
       Port            =   0
       Scope           =   2
       TabPanelIndex   =   0
@@ -257,11 +261,11 @@ Begin Window WndServer
       TextFont        =   "System"
       TextSize        =   0.0
       TextUnit        =   0
-      Top             =   53
+      Top             =   54
       Transparent     =   False
       Underline       =   False
       Visible         =   True
-      Width           =   97
+      Width           =   68
    End
    Begin Timer tmrUpdateControls
       Index           =   -2147483648
@@ -418,6 +422,7 @@ End
 
 	#tag Constant, Name = kFontMono, Type = String, Dynamic = False, Default = \"", Scope = Private
 		#Tag Instance, Platform = Mac OS, Language = Default, Definition  = \"Monaco"
+		#Tag Instance, Platform = Windows, Language = Default, Definition  = \"Courier New"
 	#tag EndConstant
 
 	#tag Constant, Name = kLabelStart, Type = String, Dynamic = False, Default = \"Start", Scope = Private
@@ -432,13 +437,26 @@ End
 #tag Events objServer
 	#tag Event
 		Sub DataAvailable(data As String)
+		  //
+		  // See if the last character is visible
+		  //
+		  dim lineNumOfLastVisible as integer = fldOut.LineNumAtCharPos( fldOut.CharPosAtXY( 0, fldOut.Height - 9 ) )
+		  dim lineNumOfLastChar as integer = fldOut.LineNumAtCharPos( fldOut.Text.LenB )
+		  
 		  fldOut.AppendText data
-		  fldOut.ScrollPosition = 1000000000
+		  
+		  if lineNumOfLastChar = lineNumOfLastVisible then
+		    fldOut.ScrollPosition = 1000000000
+		  end if
 		  
 		End Sub
 	#tag EndEvent
 	#tag Event
 		Sub Started()
+		  fldOut.AppendText "PID: " + me.PID + EndOfLine
+		  fldOut.AppendText "Port: " + str( me.ConnectedPort ) + EndOfLine
+		  fldOut.AppendText EndOfLine
+		  
 		  UpdateControls
 		End Sub
 	#tag EndEvent
@@ -472,6 +490,7 @@ End
 		    objServer.Port = fldPort.Text.Val
 		    objServer.LogLevel = pupLogLevel.RowTag( pupLogLevel.ListIndex )
 		    objServer.WorkingDirectory = App.DataFolder
+		    objServer.DBFilename = "redis-server-gui-dump.rdb"
 		    objServer.Start
 		    
 		    fldOut.AppendText "$ " + objServer.LaunchCommand + EndOfLine + EndOfLine

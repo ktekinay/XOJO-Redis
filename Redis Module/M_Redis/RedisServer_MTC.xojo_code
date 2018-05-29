@@ -2,8 +2,83 @@
 Class RedisServer_MTC
 	#tag Method, Flags = &h21
 		Private Sub Destructor()
-		  Stop
+		  #if TargetWindows then
+		    if IsRunning then
+		      Kill
+		    end if
+		  #else
+		    Stop
+		  #endif
+		  
 		  TeardownServerShell
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub Kill()
+		  //
+		  // Will force a hard kill
+		  //
+		  
+		  if IsRunning then
+		    //
+		    // Make sure it's not going to quit on its own
+		    //
+		    ServerShell.Poll
+		    ServerShell.Poll
+		  end if
+		  
+		  if IsRunning then
+		    ServerShell.Close
+		  end if
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Shared Function ParseConfigFile(config As FolderItem) As Dictionary
+		  dim tis as TextInputStream = TextInputStream.Open( config )
+		  dim contents as string = tis.ReadAll( Encodings.UTF8 )
+		  tis.Close
+		  tis = nil
+		  
+		  dim rx as new RegEx
+		  rx.SearchPattern = "(?mi-Us)^[\x20\t]*(\w[\w\-]*)[\x20\t]+(\S+)"
+		  
+		  dim r as new Dictionary
+		  
+		  dim match as RegExMatch = rx.Search( contents )
+		  while match isa object
+		    r.Value( match.SubExpressionString( 1 ) )  = match.SubExpressionString( 2 )
+		    match = rx.Search
+		  wend
+		  
+		  return r
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub PopulateConnectedPort()
+		  //
+		  // Populates mConnectedPort
+		  //
+		  // Order is important here
+		  //
+		  
+		  if not IsRunning then
+		    mConnectedPort = 0
+		  elseif Port > 0 then
+		    mConnectedPort = Port
+		  elseif Parameters isa object and Parameters.Lookup( "port", 0 ).IntegerValue > 0 then
+		    mConnectedPort = Parameters.Value( "port" ).IntegerValue
+		  elseif ConfigFile isa object then
+		    dim params as Dictionary = ParseConfigFile( ConfigFile )
+		    mConnectedPort = params.Lookup( "port", 0 ).IntegerValue
+		  else
+		    mConnectedPort = M_Redis.Redis_MTC.kDefaultPort
+		  end if
 		  
 		End Sub
 	#tag EndMethod
@@ -38,7 +113,22 @@ Class RedisServer_MTC
 		  
 		  dim stuff as string = sender.ReadAll.DefineEncoding( Encodings.UTF8 )
 		  
+		  #if TargetWindows then
+		    if PID = "" then
+		      static rx as RegEx
+		      if rx is nil then
+		        rx = new RegEx
+		        rx.SearchPattern = "^\[(\d+)\]"
+		      end if
+		      dim match as RegExMatch = rx.Search( stuff )
+		      if match isa RegExMatch then
+		        mPID = match.SubExpressionString( 1 )
+		      end if
+		    end if
+		  #endif
+		  
 		  if stuff.InStr( kReadyMarker ) <> 0 then
+		    PopulateConnectedPort
 		    mIsReady = true
 		    RaiseEvent Started
 		  end if
@@ -67,9 +157,11 @@ Class RedisServer_MTC
 		  end if
 		  
 		  mIsReady = false
+		  mConnectedPort = 0
+		  mPID = ""
 		  
-		  dim serverPath as string = RedisServerFile.ShellPath
-		  dim configPath as string = if( ConfigFile is nil, "", ConfigFile.ShellPath )
+		  dim serverPath as string = ShellPathOf( RedisServerFile )
+		  dim configPath as string = ShellPathOf( ConfigFile )
 		  
 		  dim logLevelString as string
 		  select case LogLevel
@@ -83,25 +175,24 @@ Class RedisServer_MTC
 		    logLevelString = "warning"
 		  end select
 		  
-		  #if TargetWindows then
-		    
-		    #pragma error "Finish this!!"
-		    
-		  #else
-		    
-		    dim usePort as integer = if( Port > 0, Port, 0 )
-		    
-		    dim paramString as string = _
-		    if( configPath <> "", configPath + " ", "" ) + _
-		    if( LogLevelString <> "", "--loglevel " + logLevelString + " ", "" ) + _
-		    if( usePort <> 0, "--port " + str( usePort ) + " ", "" ) + _
-		    if( WorkingDirectory isa object, "--dir " + WorkingDirectory.ShellPath, "") + _
-		    ParametersToString
-		    paramString = paramString.Trim
-		    
-		    mLaunchCommand = serverPath + " " + paramString
-		    ServerShell.Execute serverPath, paramString
-		  #endif
+		  dim usePort as integer = if( Port > 0, Port, 0 )
+		  
+		  dim paramString as string = ParametersToString
+		  if paramString <> "" then
+		    paramString = paramString + " "
+		  end if
+		  
+		  paramString = _
+		  if( configPath <> "", configPath + " ", "" ) + _
+		  paramString + _
+		  if( LogLevelString <> "", "--loglevel " + logLevelString + " ", "" ) + _
+		  if( usePort <> 0, "--port " + str( usePort ) + " ", "" ) + _
+		  if( WorkingDirectory isa object, "--dir " + ShellPathOf( WorkingDirectory ) + " ", "") + _
+		  if( DBFilename.Trim <> "", "--dbfilename """ + DBFilename + """ ", "" )
+		  paramString = paramString.Trim
+		  
+		  mLaunchCommand = serverPath + " " + paramString
+		  ServerShell.Execute LaunchCommand
 		  
 		End Sub
 	#tag EndMethod
@@ -109,10 +200,12 @@ Class RedisServer_MTC
 	#tag Method, Flags = &h0
 		Sub Stop(force As Boolean = False)
 		  if IsRunning then
-		    ServerShell.Write ChrB( 3 )
+		    static ctrlC as string = ChrB( 3 ).DefineEncoding( nil )
+		    ServerShell.Write ctrlC
 		    ServerShell.Poll
+		    
 		    if force then
-		      ServerShell.Close
+		      Kill
 		    end if
 		  end if
 		  
@@ -126,8 +219,13 @@ Class RedisServer_MTC
 		  //
 		  
 		  mIsReady = false
+		  mPID = ""
+		  mConnectedPort = 0
 		  
 		  if ServerShell isa object then
+		    if ServerShell.IsRunning then
+		      Kill
+		    end if
 		    RemoveHandler ServerShell.DataAvailable, WeakAddressOf ServerShell_DataAvailable
 		    RemoveHandler ServerShell.Completed, WeakAddressOf ServerShell_Completed
 		    ServerShell = nil
@@ -152,6 +250,19 @@ Class RedisServer_MTC
 
 	#tag Property, Flags = &h0
 		ConfigFile As FolderItem
+	#tag EndProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  return mConnectedPort
+			End Get
+		#tag EndGetter
+		ConnectedPort As Integer
+	#tag EndComputedProperty
+
+	#tag Property, Flags = &h0
+		DBFilename As String
 	#tag EndProperty
 
 	#tag ComputedProperty, Flags = &h0
@@ -215,6 +326,10 @@ Class RedisServer_MTC
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
+		Attributes( hidden ) Private mConnectedPort As Integer
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
 		Attributes( hidden ) Private mIsReady As Boolean
 	#tag EndProperty
 
@@ -224,6 +339,10 @@ Class RedisServer_MTC
 
 	#tag Property, Flags = &h21
 		Attributes( hidden ) Private mLaunchCommand As String
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Attributes( hidden ) Private mPID As String
 	#tag EndProperty
 
 	#tag Property, Flags = &h0
@@ -293,6 +412,24 @@ Class RedisServer_MTC
 			End Get
 		#tag EndGetter
 		Private ParametersToString As String
+	#tag EndComputedProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  #if TargetWindows then
+			    return mPID
+			  #else
+			    if IsRunning then
+			      return str( ServerShell.PID )
+			    else
+			      return ""
+			    end if
+			  #endif
+			  
+			End Get
+		#tag EndGetter
+		PID As String
 	#tag EndComputedProperty
 
 	#tag Property, Flags = &h0
@@ -405,6 +542,23 @@ Class RedisServer_MTC
 			Group="Behavior"
 			Type="String"
 			EditorType="MultiLineEditor"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="DBFilename"
+			Group="Behavior"
+			Type="String"
+			EditorType="MultiLineEditor"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="PID"
+			Group="Behavior"
+			Type="String"
+			EditorType="MultiLineEditor"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="ConnectedPort"
+			Group="Behavior"
+			Type="Integer"
 		#tag EndViewProperty
 	#tag EndViewBehavior
 End Class

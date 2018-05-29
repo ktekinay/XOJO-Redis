@@ -11,11 +11,16 @@
 					Destination = 1
 					Subdirectory = 
 					FolderItem = Li4vLi4vU2hhcmVkJTIwUmVzb3VyY2VzL0NvcHklMjBJbnRvJTIwUHJvamVjdHMvUmVkaXMlMjBTZXJ2ZXIlMjBNYWMv
-					FolderItem = Li4vLi4vU2hhcmVkJTIwUmVzb3VyY2VzL0NvcHklMjBJbnRvJTIwUHJvamVjdHMvcmVkaXMtc2VydmVyLWd1aS5jb25m
 				End
 			End
 			Begin BuildStepList Windows
 				Begin BuildProjectStep Build
+				End
+				Begin CopyFilesBuildStep CopyRedisServerWindows
+					AppliesTo = 0
+					Destination = 1
+					Subdirectory = 
+					FolderItem = Li4vLi4vU2hhcmVkJTIwUmVzb3VyY2VzL0NvcHklMjBJbnRvJTIwUHJvamVjdHMvUmVkaXMlMjBTZXJ2ZXIlMjBXaW5kb3dzLw==
 				End
 			End
 #tag EndBuildAutomation

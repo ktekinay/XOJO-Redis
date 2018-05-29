@@ -120,7 +120,7 @@ Inherits Application
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
-			  return App.ResourcesFolder.Child( "redis-server-gui.conf" )
+			  return RedisServerFile.Parent.Child( "redis-server-gui.conf" )
 			  
 			End Get
 		#tag EndGetter
@@ -131,12 +131,15 @@ Inherits Application
 		#tag Getter
 			Get
 			  dim server as FolderItem
+			  dim resource as FolderItem
 			  
 			  #if TargetMacOS then
-			    dim resource as FolderItem = ResourcesFolder.Child( "Redis Server Mac" )
-			    server = resource.Child( kServerFileName )
+			    resource = ResourcesFolder.Child( "Redis Server Mac" )
+			  #elseif TargetWindows then
+			    resource = ResourcesFolder.Child( "Redis Server Windows" )
 			  #endif
 			  
+			  server = resource.Child( kServerFileName )
 			  return server
 			End Get
 		#tag EndGetter
@@ -146,7 +149,15 @@ Inherits Application
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
-			  dim f as FolderItem = App.ExecutableFile.Parent.Parent.Child( "Resources" )
+			  dim f as FolderItem
+			  #if TargetMacOS then
+			    f = App.ExecutableFile.Parent.Parent.Child( "Resources" )
+			  #else
+			    dim appName as string = App.ExecutableFile.Name
+			    appName = appName.Replace( ".exe", "" )
+			    f = App.ExecutableFile.Parent.Child( appName + " Resources" )
+			  #endif
+			  
 			  return f
 			  
 			End Get
@@ -173,6 +184,7 @@ Inherits Application
 	#tag EndConstant
 
 	#tag Constant, Name = kServerFileName, Type = String, Dynamic = False, Default = \"redis-server", Scope = Public
+		#Tag Instance, Platform = Windows, Language = Default, Definition  = \"redis-server.exe"
 	#tag EndConstant
 
 	#tag Constant, Name = kServerHide, Type = String, Dynamic = False, Default = \"Hide", Scope = Public

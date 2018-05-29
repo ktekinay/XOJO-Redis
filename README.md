@@ -98,6 +98,10 @@ This project was designed and implemented by:
 
 - Kem Tekinay (ktekinay at mactechnologies.com)
 
+## Binaries
+
+The Mac binary was compiled from source downloaded from https://redis.io. The Windows binary was downloaded directly from https://github.com/MicrosoftArchive/redis/releases.
+
 ## Release Notes
 
 **1.0** (Jan. 22, 2018)
