@@ -479,13 +479,14 @@ End
 		    dim forceIt as boolean = Keyboard.AsyncOptionKey or KeyBoard.AsyncAltKey
 		    objServer.Stop forceIt
 		  else
-		    fldOut.StyledText = nil
+		    fldOut.StyledText.Text = ""
 		    
 		    objServer.Port = fldPort.Text.Val
 		    objServer.LogLevel = pupLogLevel.RowTag( pupLogLevel.ListIndex )
 		    objServer.Start
 		    
 		    fldOut.AppendText "$ " + objServer.LaunchCommand + EndOfLine + EndOfLine
+		    fldOut.StyledText.Bold( 0, 1 ) = true
 		  end if
 		  
 		  UpdateControls
@@ -534,7 +535,7 @@ End
 	#tag EndConstant
 
 	#tag Constant, Name = kFontMono, Type = String, Dynamic = False, Default = \"", Scope = Private
-		#Tag Instance, Platform = Mac OS, Language = Default, Definition  = \"Monaco"
+		#Tag Instance, Platform = Mac OS, Language = Default, Definition  = \"Menlo"
 		#Tag Instance, Platform = Windows, Language = Default, Definition  = \"Courier New"
 	#tag EndConstant
 
@@ -556,7 +557,29 @@ End
 		  dim lineNumOfLastVisible as integer = fldOut.LineNumAtCharPos( fldOut.CharPosAtXY( 0, fldOut.Height - 9 ) )
 		  dim lineNumOfLastChar as integer = fldOut.LineNumAtCharPos( fldOut.Text.LenB )
 		  
-		  fldOut.AppendText data
+		  //
+		  // Format the data
+		  //
+		  dim rx as RegEx
+		  if rx is nil then
+		    rx = new RegEx
+		    rx.SearchPattern = "^(?:(.*\x20[[:punct:]]\x20)(.*\R+))|\R+|.+\R*"
+		  end if
+		  
+		  dim textLen as integer = fldOut.Text.Len
+		  
+		  dim match as RegExMatch = rx.Search( data )
+		  while match isa object
+		    dim newLine as string = match.SubExpressionString( 0 ).DefineEncoding( Encodings.UTF8 )
+		    fldOut.AppendText newLine
+		    if match.SubExpressionCount > 1 then
+		      static grey as color = Color.Gray
+		      dim firstPart as string = match.SubExpressionString( 1 ).DefineEncoding( Encodings.UTF8 )
+		      fldOut.StyledText.TextColor( textLen, firstPart.Len ) = grey
+		    end if
+		    textLen = textLen + newLine.Len
+		    match = rx.Search
+		  wend
 		  
 		  if lineNumOfLastChar = lineNumOfLastVisible then
 		    fldOut.ScrollPosition = 1000000000
@@ -572,18 +595,22 @@ End
 		  fldOut.SelBold = true
 		  fldOut.AppendText "PID"
 		  fldOut.SelBold = false
-		  fldOut.AppendText ": " + me.PID + EndOfLine
-		  
-		  fldOut.AppendText "Port: "
-		  fldOut.SelStart = fldOut.Text.Len - 6
-		  fldOut.SelLength = 4
-		  fldOut.SelBold = true
-		  
-		  fldOut.AppendText str( me.ConnectedPort ) + EndOfLine
+		  fldOut.AppendText ":  "
+		  fldOut.SelTextColor = Color.Blue
+		  fldOut.AppendText me.PID
+		  fldOut.SelTextColor = Color.Black
 		  fldOut.AppendText EndOfLine
 		  
-		  fldOut.SelLength = 0
-		  fldOut.SelStart = fldOut.Text.Len
+		  fldOut.SelBold = true
+		  fldOut.AppendText "Port"
+		  fldOut.SelBold = false
+		  fldOut.AppendText ": " 
+		  fldOut.SelTextColor = Color.Blue
+		  fldOut.AppendText str( me.ConnectedPort )
+		  fldOut.SelTextColor = Color.Black
+		  fldOut.AppendText EndOfLine
+		  
+		  fldOut.AppendText EndOfLine
 		  
 		  UpdateControls
 		End Sub
