@@ -168,7 +168,7 @@ Begin Window WndServer
       Visible         =   True
       Width           =   68
    End
-   Begin PushButton btnStart
+   Begin PushButton btnToggleServer
       AutoDeactivate  =   True
       Bold            =   False
       ButtonStyle     =   "0"
@@ -302,7 +302,7 @@ End
 		      else
 		        ShouldClose = true
 		      end if
-		      btnStart.Push
+		      ToggleServer
 		      return true
 		    end if
 		  end if
@@ -332,7 +332,7 @@ End
 	#tag Event
 		Sub EnableMenuItems()
 		  UpdateControls
-		  ServerStart.Text = btnStart.Caption
+		  ServerStart.Text = btnToggleServer.Caption
 		  if objServer.IsRunning then
 		    ServerDefaultConfig.Text = App.kServerDefaultConfig + "..."
 		  else
@@ -384,7 +384,7 @@ End
 
 	#tag MenuHandler
 		Function ServerStart() As Boolean Handles ServerStart.Action
-			btnStart.Push
+			ToggleServer
 			return true
 			
 		End Function
@@ -411,8 +411,27 @@ End
 		    ShouldReload = true
 		  end if
 		  
-		  btnStart.Push
+		  ToggleServer
 		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub ToggleServer()
+		  if objServer.IsRunning then
+		    dim forceIt as boolean = Keyboard.AsyncOptionKey or KeyBoard.AsyncAltKey
+		    objServer.Stop forceIt
+		  else
+		    fldOut.StyledText = nil
+		    
+		    objServer.Port = fldPort.Text.Val
+		    objServer.LogLevel = pupLogLevel.RowTag( pupLogLevel.ListIndex )
+		    objServer.Start
+		    
+		    fldOut.AppendText "$ " + objServer.LaunchCommand + EndOfLine + EndOfLine
+		  end if
+		  
+		  UpdateControls
 		End Sub
 	#tag EndMethod
 
@@ -425,10 +444,10 @@ End
 		  LastIsRunning = objServer.IsRunning
 		  
 		  if LastIsRunning then
-		    btnStart.Caption = kLabelStop
+		    btnToggleServer.Caption = kLabelStop
 		    fldPort.Enabled = false
 		  else
-		    btnStart.Caption = kLabelStart
+		    btnToggleServer.Caption = kLabelStart
 		    fldPort.Enabled = true
 		  end if
 		  
@@ -520,30 +539,18 @@ End
 		    
 		    if ShouldReload then
 		      ShouldReload = false
-		      btnStart.Push
+		      ToggleServer
 		    end if
 		  end if
 		  
 		End Sub
 	#tag EndEvent
 #tag EndEvents
-#tag Events btnStart
+#tag Events btnToggleServer
 	#tag Event
 		Sub Action()
-		  if objServer.IsRunning then
-		    dim forceIt as boolean = Keyboard.AsyncOptionKey or KeyBoard.AsyncAltKey
-		    objServer.Stop forceIt
-		  else
-		    fldOut.StyledText = nil
-		    
-		    objServer.Port = fldPort.Text.Val
-		    objServer.LogLevel = pupLogLevel.RowTag( pupLogLevel.ListIndex )
-		    objServer.Start
-		    
-		    fldOut.AppendText "$ " + objServer.LaunchCommand + EndOfLine + EndOfLine
-		  end if
+		  ToggleServer
 		  
-		  UpdateControls
 		End Sub
 	#tag EndEvent
 #tag EndEvents
