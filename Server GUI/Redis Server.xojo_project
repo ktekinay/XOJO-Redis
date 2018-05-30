@@ -4,6 +4,7 @@ MinIDEVersion=20070100
 Class=App;App.xojo_code;&h000000002AC0CFFF;&h0000000000000000;false
 FileTypeSet=ConfFileType;ConfFileType.xojo_filetypeset;&h000000006489D7FF;&h0000000000000000;false
 Window=WndServer;WndServer.xojo_window;&h000000003ED4D7FF;&h0000000000000000;false
+Window=WndAbout;WndAbout.xojo_window;&h000000003FAC0FFF;&h0000000000000000;false
 MenuBar=MainMenuBar;MainMenuBar.xojo_menu;&h00000000328E17FF;&h0000000000000000;false
 Folder=Shared Resources;../Shared Resources;&h000000001145F7FF;&h0000000000000000;false
 Folder=Redis Module;../Redis Module;&h000000002A26BFFF;&h0000000000000000;false

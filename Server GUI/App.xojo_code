@@ -47,6 +47,13 @@ Inherits Application
 
 
 	#tag MenuHandler
+		Function HelpAbout() As Boolean Handles HelpAbout.Action
+			WndAbout.Show
+			return true
+		End Function
+	#tag EndMenuHandler
+
+	#tag MenuHandler
 		Function ServerShowHide() As Boolean Handles ServerShowHide.Action
 			if WndServer.Visible then
 			Hide

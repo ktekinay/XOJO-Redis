@@ -310,6 +310,15 @@ End
 	#tag EndEvent
 
 	#tag Event
+		Sub Close()
+		  if WndAbout.IsOpen then
+		    WndAbout.Close
+		  end if
+		  
+		End Sub
+	#tag EndEvent
+
+	#tag Event
 		Function DragEnter(obj As DragItem, action As Integer) As Boolean
 		  #pragma unused action
 		  
