@@ -275,6 +275,14 @@ Begin Window WndServer
       Scope           =   2
       TabPanelIndex   =   0
    End
+   Begin Timer tmrAfterOpen
+      Index           =   -2147483648
+      LockedInPosition=   False
+      Mode            =   1
+      Period          =   20
+      Scope           =   2
+      TabPanelIndex   =   0
+   End
 End
 #tag EndWindow
 
@@ -371,6 +379,46 @@ End
 		Function ServerDefaultConfig() As Boolean Handles ServerDefaultConfig.Action
 			OpenDocument App.RedisDefaultConfigFile
 			return true
+		End Function
+	#tag EndMenuHandler
+
+	#tag MenuHandler
+		Function ServerSaveAutoStartConfig() As Boolean Handles ServerSaveAutoStartConfig.Action
+			dim dlg as new MessageDialog
+			
+			if objServer.ConfigFile is nil or not objServer.ConfigFile.Exists then
+			dlg.Message = "The config file cannot be found."
+			call dlg.ShowModalWithin( self )
+			
+			else
+			
+			dlg.Message = "The current config file will be copied to the App Data folder as """ + _
+			kAutoStartFilename + """. Proceed?"
+			dlg.Explanation = "If that file exists, it will overwritten."
+			dlg.ActionButton.Caption = "Proceed"
+			dlg.CancelButton.Visible = true
+			
+			dim btn as MessageDialogButton = dlg.ShowModalWithin( self )
+			if btn isa object then
+			dim srcFile as FolderItem = objServer.ConfigFile
+			dim tis as TextInputStream = TextInputStream.Open( srcFile )
+			dim src as string = tis.ReadAll( Encodings.UTF8 )
+			tis.Close
+			tis = nil
+			
+			src = ReplaceLineEndings( src, EndOfLine )
+			
+			dim destFile as FolderItem = App.DataFolder.Child( kAutoStartFilename )
+			dim tos as TextOutputStream = TextOutputStream.Create( destFile )
+			tos.Write src
+			tos.Close
+			tos = nil
+			end if
+			
+			end if
+			
+			return true
+			
 		End Function
 	#tag EndMenuHandler
 
@@ -482,6 +530,9 @@ End
 	#tag EndProperty
 
 
+	#tag Constant, Name = kAutoStartFilename, Type = String, Dynamic = False, Default = \"auto-start.conf", Scope = Private
+	#tag EndConstant
+
 	#tag Constant, Name = kFontMono, Type = String, Dynamic = False, Default = \"", Scope = Private
 		#Tag Instance, Platform = Mac OS, Language = Default, Definition  = \"Monaco"
 		#Tag Instance, Platform = Windows, Language = Default, Definition  = \"Courier New"
@@ -590,6 +641,19 @@ End
 	#tag Event
 		Sub Action()
 		  UpdateControls
+		End Sub
+	#tag EndEvent
+#tag EndEvents
+#tag Events tmrAfterOpen
+	#tag Event
+		Sub Action()
+		  if not objServer.IsRunning then
+		    dim autoStart as FolderItem = App.DataFolder.Child( kAutoStartFilename )
+		    if autoStart.Exists then
+		      OpenDocument autoStart
+		    end if
+		  end if
+		  
 		End Sub
 	#tag EndEvent
 #tag EndEvents

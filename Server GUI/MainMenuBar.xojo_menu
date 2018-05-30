@@ -40,6 +40,27 @@ Begin Menu MainMenuBar
          AutoEnable = True
          Visible = True
       End
+      Begin MenuItem UntitledSeparator1
+         SpecialMenu = 0
+         Text = "-"
+         Index = -2147483648
+         AutoEnable = True
+         Visible = True
+      End
+      Begin MenuItem ServerSaveAutoStartConfig
+         SpecialMenu = 0
+         Text = "Save Config As Auto-Start..."
+         Index = -2147483648
+         AutoEnable = True
+         Visible = True
+      End
+      Begin MenuItem ServerRevealAppDataFolder
+         SpecialMenu = 0
+         Text = "Reveal App Data Folder"
+         Index = -2147483648
+         AutoEnable = True
+         Visible = True
+      End
       Begin MenuItem UntitledSeparator0
          SpecialMenu = 0
          Text = "-"
