@@ -93,7 +93,7 @@ Inherits Application
 		    dim sh as new Shell
 		    sh.Execute "osascript -e '" + script + "'"
 		  #else
-		    WndServer.Visible = false
+		    WndServer.Minimize
 		  #endif
 		  
 		  
@@ -188,6 +188,7 @@ Inherits Application
 	#tag EndConstant
 
 	#tag Constant, Name = kServerHide, Type = String, Dynamic = False, Default = \"Hide", Scope = Public
+		#Tag Instance, Platform = Windows, Language = Default, Definition  = \"&Minimize"
 	#tag EndConstant
 
 	#tag Constant, Name = kServerShow, Type = String, Dynamic = False, Default = \"Show", Scope = Public
