@@ -5,3 +5,4 @@
 Harnesses/Console/RedisHarness.debug
 Harnesses/Console/Builds - Redis Console Harness.xojo_project
 Server GUI/Builds - Redis Server.xojo_project
+*.debug.app
