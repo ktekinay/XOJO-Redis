@@ -30,7 +30,7 @@ Begin Window WndServer
       AcceptTabs      =   False
       Alignment       =   0
       AutoDeactivate  =   True
-      AutomaticallyCheckSpelling=   True
+      AutomaticallyCheckSpelling=   False
       BackColor       =   &cFFFFFF00
       Bold            =   False
       Border          =   True
@@ -58,7 +58,7 @@ Begin Window WndServer
       Scope           =   2
       ScrollbarHorizontal=   False
       ScrollbarVertical=   True
-      Styled          =   False
+      Styled          =   True
       TabIndex        =   0
       TabPanelIndex   =   0
       TabStop         =   True
@@ -194,7 +194,7 @@ Begin Window WndServer
       TextFont        =   "System"
       TextSize        =   0.0
       TextUnit        =   0
-      Top             =   20
+      Top             =   54
       Transparent     =   False
       Underline       =   False
       Visible         =   True
@@ -285,10 +285,10 @@ End
 		    dim dlg as new MessageDialog
 		    dlg.ActionButton.Caption = "&Stop"
 		    dlg.CancelButton.Visible = true
-		    dlg.AlternateActionButton.Caption = "&Hide"
+		    dlg.AlternateActionButton.Caption = App.kServerHide
 		    dlg.AlternateActionButton.Visible = true
-		    dlg.Message = "The server is running. Stop it or just hide the window?"
-		    dlg.Explanation = "Depending the config, the values might not auto-save."
+		    dlg.Message = "The server is running. Stop it or just hide the application?"
+		    dlg.Explanation = "If you Stop, depending the config, the values might not auto-save."
 		    
 		    dim btn as MessageDialogButton = dlg.ShowModalWithin( self )
 		    if btn is dlg.CancelButton then
@@ -340,8 +340,13 @@ End
 		Sub Open()
 		  self.AcceptFileDrop ConfFileType.Config
 		  
+		  //
+		  // Default config
+		  //
 		  objServer.RedisServerFile = App.RedisServerFile
 		  objServer.ConfigFile = App.RedisDefaultConfigFile
+		  objServer.WorkingDirectory = App.DataFolder
+		  objServer.DBFilename = "redis-server-gui-dump.rdb"
 		  
 		  WndServer.Title = objServer.RedisVersion
 		End Sub
@@ -425,15 +430,17 @@ End
 		#Tag Instance, Platform = Windows, Language = Default, Definition  = \"Courier New"
 	#tag EndConstant
 
-	#tag Constant, Name = kLabelStart, Type = String, Dynamic = False, Default = \"Start", Scope = Private
+	#tag Constant, Name = kLabelStart, Type = String, Dynamic = False, Default = \"&Start", Scope = Private
 	#tag EndConstant
 
-	#tag Constant, Name = kLabelStop, Type = String, Dynamic = False, Default = \"Stop", Scope = Private
+	#tag Constant, Name = kLabelStop, Type = String, Dynamic = False, Default = \"&Stop", Scope = Private
 	#tag EndConstant
 
 
 #tag EndWindowCode
 
+#tag Events fldOut
+#tag EndEvents
 #tag Events objServer
 	#tag Event
 		Sub DataAvailable(data As String)
@@ -453,9 +460,24 @@ End
 	#tag EndEvent
 	#tag Event
 		Sub Started()
-		  fldOut.AppendText "PID: " + me.PID + EndOfLine
-		  fldOut.AppendText "Port: " + str( me.ConnectedPort ) + EndOfLine
+		  fldOut.SelStart = fldOut.Text.Len + 1
+		  fldPort.SelLength = 0
+		  
+		  fldOut.SelBold = true
+		  fldOut.AppendText "PID"
+		  fldOut.SelBold = false
+		  fldOut.AppendText ": " + me.PID + EndOfLine
+		  
+		  fldOut.AppendText "Port: "
+		  fldOut.SelStart = fldOut.Text.Len - 6
+		  fldOut.SelLength = 4
+		  fldOut.SelBold = true
+		  
+		  fldOut.AppendText str( me.ConnectedPort ) + EndOfLine
 		  fldOut.AppendText EndOfLine
+		  
+		  fldOut.SelLength = 0
+		  fldOut.SelStart = fldOut.Text.Len
 		  
 		  UpdateControls
 		End Sub
@@ -485,12 +507,10 @@ End
 		    dim forceIt as boolean = Keyboard.AsyncOptionKey or KeyBoard.AsyncAltKey
 		    objServer.Stop forceIt
 		  else
-		    fldOut.Text = ""
+		    fldOut.StyledText = nil
 		    
 		    objServer.Port = fldPort.Text.Val
 		    objServer.LogLevel = pupLogLevel.RowTag( pupLogLevel.ListIndex )
-		    objServer.WorkingDirectory = App.DataFolder
-		    objServer.DBFilename = "redis-server-gui-dump.rdb"
 		    objServer.Start
 		    
 		    fldOut.AppendText "$ " + objServer.LaunchCommand + EndOfLine + EndOfLine

@@ -30,7 +30,12 @@ Class RedisServer_MTC
 		  end if
 		  
 		  if IsRunning then
-		    ServerShell.Close
+		    dim sh as new Shell
+		    #if TargetWindows then
+		      sh.Execute "taskkill /f /pid " + PID
+		    #else
+		      sh.Execute "kill -9 " + PID
+		    #endif
 		  end if
 		  
 		End Sub
@@ -109,7 +114,11 @@ Class RedisServer_MTC
 
 	#tag Method, Flags = &h21
 		Private Sub ServerShell_DataAvailable(sender As Shell)
-		  const kReadyMarker as string = "Server initialized"
+		  #if TargetWindows then
+		    const kReadyMarker as string = "Server started"
+		  #else
+		    const kReadyMarker as string = "Server initialized"
+		  #endif
 		  
 		  dim stuff as string = sender.ReadAll.DefineEncoding( Encodings.UTF8 )
 		  
@@ -139,11 +148,18 @@ Class RedisServer_MTC
 		End Sub
 	#tag EndMethod
 
+	#tag ExternalMethod, Flags = &h21
+		Private Declare Function SetConsoleCtrlHandler Lib kWindowsLib (handler As Ptr, add As Boolean) As Boolean
+	#tag EndExternalMethod
+
 	#tag Method, Flags = &h0
 		Sub Start()
 		  if ServerShell is nil then
 		    ServerShell = new Shell
 		    ServerShell.Mode = 2 // Interactive
+		    #if TargetWindows then
+		      ServerShell.Canonical = true
+		    #endif
 		    AddHandler ServerShell.DataAvailable, WeakAddressOf ServerShell_DataAvailable
 		    AddHandler ServerShell.Completed, WeakAddressOf ServerShell_Completed
 		  end if
@@ -200,8 +216,21 @@ Class RedisServer_MTC
 	#tag Method, Flags = &h0
 		Sub Stop(force As Boolean = False)
 		  if IsRunning then
-		    static ctrlC as string = ChrB( 3 ).DefineEncoding( nil )
-		    ServerShell.Write ctrlC
+		    #if TargetWindows then
+		      declare function AttachConsole lib kWindowsLib (dbProcessId As UInt32) As Boolean
+		      declare function GenerateConsoleCtrlEvent lib kWindowsLib (dwCtrlEvent as Int32, dwProcessGroupId As UInt32) As Boolean
+		      
+		      if AttachConsole( PID.Val ) then
+		        call SetConsoleCtrlHandler( nil, true )
+		        call GenerateConsoleCtrlEvent( 0, 0 )
+		        DoWindowsTeardown = true
+		      end if
+		      
+		    #else
+		      static ctrlC as string = ChrB( 3 ).DefineEncoding( nil )
+		      ServerShell.Write ctrlC
+		    #endif
+		    
 		    ServerShell.Poll
 		    
 		    if force then
@@ -217,6 +246,17 @@ Class RedisServer_MTC
 		  //
 		  // Assumes it's ready to be torn down
 		  //
+		  
+		  #if TargetWindows then
+		    if DoWindowsTeardown then
+		      declare function FreeConsole lib kWindowsLib () As Boolean
+		      
+		      call SetConsoleCtrlHandler( nil, false )
+		      call FreeConsole()
+		      
+		      DoWindowsTeardown = false
+		    end if
+		  #endif
 		  
 		  mIsReady = false
 		  mPID = ""
@@ -263,6 +303,10 @@ Class RedisServer_MTC
 
 	#tag Property, Flags = &h0
 		DBFilename As String
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private DoWindowsTeardown As Boolean
 	#tag EndProperty
 
 	#tag ComputedProperty, Flags = &h0
@@ -450,6 +494,9 @@ Class RedisServer_MTC
 
 
 	#tag Constant, Name = kDefaultPort, Type = Double, Dynamic = False, Default = \"6379", Scope = Public
+	#tag EndConstant
+
+	#tag Constant, Name = kWindowsLib, Type = String, Dynamic = False, Default = \"kernel32.dll", Scope = Private
 	#tag EndConstant
 
 
