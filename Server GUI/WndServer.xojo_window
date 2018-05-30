@@ -333,6 +333,11 @@ End
 		Sub EnableMenuItems()
 		  UpdateControls
 		  ServerStart.Text = btnStart.Caption
+		  if objServer.IsRunning then
+		    ServerDefaultConfig.Text = App.kServerDefaultConfig + "..."
+		  else
+		    ServerDefaultConfig.Text = App.kServerDefaultConfig
+		  end if
 		End Sub
 	#tag EndEvent
 
@@ -352,6 +357,30 @@ End
 		End Sub
 	#tag EndEvent
 
+
+	#tag MenuHandler
+		Function ServerDefaultConfig() As Boolean Handles ServerDefaultConfig.Action
+			OpenDocument App.RedisDefaultConfigFile
+			return true
+		End Function
+	#tag EndMenuHandler
+
+	#tag MenuHandler
+		Function ServerSelectConfig() As Boolean Handles ServerSelectConfig.Action
+			dim dlg as new OpenDialog
+			dlg.PromptText = "Select a .conf or .config file:"
+			dlg.ActionButtonCaption = "Select"
+			dlg.MultiSelect = false
+			dlg.Filter = ConfFileType.Config
+			
+			dim item as FolderItem = dlg.ShowModalWithin( self )
+			if item isa object then
+			OpenDocument item
+			end if
+			
+			return true
+		End Function
+	#tag EndMenuHandler
 
 	#tag MenuHandler
 		Function ServerStart() As Boolean Handles ServerStart.Action
@@ -439,8 +468,6 @@ End
 
 #tag EndWindowCode
 
-#tag Events fldOut
-#tag EndEvents
 #tag Events objServer
 	#tag Event
 		Sub DataAvailable(data As String)

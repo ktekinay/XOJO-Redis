@@ -183,6 +183,9 @@ Inherits Application
 		#Tag Instance, Platform = Linux, Language = Default, Definition  = \"Ctrl+Q"
 	#tag EndConstant
 
+	#tag Constant, Name = kServerDefaultConfig, Type = String, Dynamic = False, Default = \"Start With Default Config", Scope = Public
+	#tag EndConstant
+
 	#tag Constant, Name = kServerFileName, Type = String, Dynamic = False, Default = \"redis-server", Scope = Public
 		#Tag Instance, Platform = Windows, Language = Default, Definition  = \"redis-server.exe"
 	#tag EndConstant
@@ -192,6 +195,9 @@ Inherits Application
 	#tag EndConstant
 
 	#tag Constant, Name = kServerShow, Type = String, Dynamic = False, Default = \"Show", Scope = Public
+	#tag EndConstant
+
+	#tag Constant, Name = kServerStartWithConfig, Type = String, Dynamic = False, Default = \"Start With Config...", Scope = Public
 	#tag EndConstant
 
 
