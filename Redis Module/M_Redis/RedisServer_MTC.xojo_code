@@ -72,9 +72,7 @@ Class RedisServer_MTC
 		  // Order is important here
 		  //
 		  
-		  if not IsRunning then
-		    mConnectedPort = 0
-		  elseif Port > 0 then
+		  if Port > 0 then
 		    mConnectedPort = Port
 		  elseif Parameters isa object and Parameters.Lookup( "port", 0 ).IntegerValue > 0 then
 		    mConnectedPort = Parameters.Value( "port" ).IntegerValue
@@ -136,8 +134,11 @@ Class RedisServer_MTC
 		    end if
 		  #endif
 		  
-		  if stuff.InStr( kReadyMarker ) <> 0 then
+		  if ConnectedPort = 0 then
 		    PopulateConnectedPort
+		  end if
+		  
+		  if stuff.InStr( kReadyMarker ) <> 0 then
 		    mIsReady = true
 		    RaiseEvent Started
 		  end if
