@@ -440,6 +440,8 @@ Class RedisServer_MTC
 			    dim thisValue as string
 			    if values( i ).Type = Variant.TypeObject and values( i ) isa FolderItem then
 			      thisValue = FolderItem( values( i ) ).NativePath
+			    elseif values( i ).Type = Variant.TypeBoolean then
+			      thisValue = if( values( i ).BooleanValue, "yes", "no" )
 			    else
 			      thisValue = values( i ).StringValue
 			    end if
