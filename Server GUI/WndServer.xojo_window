@@ -370,6 +370,14 @@ End
 		  objServer.WorkingDirectory = App.DataFolder
 		  objServer.DBFilename = "redis-server-gui-dump.rdb"
 		  
+		  #if not TargetWindows then
+		    dim params as new Dictionary
+		    params.Value( "daemonize" ) = false
+		    params.Value( "supervised" ) = false
+		    params.Value( "pidfile" ) = PIDFile
+		    objServer.Parameters = params
+		  #endif
+		  
 		  WndServer.Title = objServer.RedisVersion
 		End Sub
 	#tag EndEvent
@@ -448,6 +456,65 @@ End
 	#tag EndMenuHandler
 
 
+	#tag Method, Flags = &h21
+		Private Sub MaybeKillExisting()
+		  if not objServer.IsRunning and PIDFile.Exists then
+		    dim pid as string
+		    dim tis as TextInputStream = TextInputStream.Open( PIDFile )
+		    pid = tis.ReadLine( Encodings.UTF8 )
+		    tis.Close
+		    tis = nil
+		    
+		    dim isRunning as boolean
+		    
+		    dim sh as new Shell
+		    
+		    #if TargetWindows then
+		      sh.Execute "TASKLIST /FI ""PID eq " + pid + """"
+		    #else
+		      sh.Execute "ps -p " + pid
+		    #endif
+		    
+		    dim result as string = sh.Result.DefineEncoding( Encodings.UTF8 ).Trim
+		    result = ReplaceLineEndings( result, EndOfLine )
+		    isRunning = result.CountFields( EndOfLine ) > 1
+		    
+		    if isRunning then
+		      dim dlg as new MessageDialog
+		      dlg.ActionButton.Caption = "Stop It"
+		      dlg.CancelButton.Caption = "Cancel"
+		      dlg.CancelButton.Visible = true
+		      dlg.Message = "An instance of redis-server started by this app is already running. Stop it?"
+		      #if TargetWindows then
+		        dlg.Explanation = "This will kill the server without giving it an opportunity to save."
+		      #else
+		        dlg.AlternateActionButton.Caption = "Kill It"
+		        dlg.AlternateActionButton.Visible = true
+		      #endif
+		      
+		      dim btn as MessageDialogButton = dlg.ShowModalWithin( self )
+		      if btn is dlg.CancelButton then
+		        return
+		      end if
+		      
+		      dim cmd as string
+		      #if TargetWindows then
+		        cmd = "TASKKILL /F /PID " + pid
+		      #else
+		        cmd = "kill " + pid + if( btn is dlg.AlternateActionButton, " -9", "" )
+		      #endif
+		      sh.Execute cmd
+		      
+		      dim targetTicks as integer = Ticks + 30
+		      do
+		        sh.Poll
+		      loop until Ticks > targetTicks
+		    end if
+		    
+		  end if
+		End Sub
+	#tag EndMethod
+
 	#tag Method, Flags = &h0
 		Sub OpenDocument(configFile As FolderItem)
 		  if objServer.IsRunning then
@@ -479,14 +546,30 @@ End
 		    dim forceIt as boolean = Keyboard.AsyncOptionKey or KeyBoard.AsyncAltKey
 		    objServer.Stop forceIt
 		  else
+		    MaybeKillExisting
+		    
 		    fldOut.StyledText.Text = ""
+		    fldOut.TextFont = kFontMono
+		    fldOut.TextSize = kTextSize
 		    
 		    objServer.Port = fldPort.Text.Val
 		    objServer.LogLevel = pupLogLevel.RowTag( pupLogLevel.ListIndex )
 		    objServer.Start
 		    
-		    fldOut.AppendText "$ " + objServer.LaunchCommand + EndOfLine + EndOfLine
-		    fldOut.StyledText.Bold( 0, 1 ) = true
+		    if IsAutoStart then
+		      IsAutoStart = false
+		      
+		      const kAutoStartText as string = "Auto Start!"
+		      
+		      fldOut.AppendText kAutoStartText + EndOfLine + EndOfLine
+		      fldOut.StyledText.TextColor( 0, kAutoStartText.Len ) = Color.Red
+		      fldOut.StyledText.Bold( 0, kAutoStartText.Len ) = true
+		    end if
+		    
+		    fldOut.SelBold = true
+		    fldOut.AppendText "$"
+		    fldOut.SelBold = false
+		    fldOut.AppendText " " + objServer.LaunchCommand + EndOfLine + EndOfLine
 		  end if
 		  
 		  UpdateControls
@@ -515,8 +598,22 @@ End
 
 
 	#tag Property, Flags = &h21
+		Private IsAutoStart As Boolean
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
 		Private LastIsRunning As Boolean
 	#tag EndProperty
+
+	#tag ComputedProperty, Flags = &h21
+		#tag Getter
+			Get
+			  return App.DataFolder.Child( ".redis_server_gui.pid" )
+			  
+			End Get
+		#tag EndGetter
+		Private PIDFile As FolderItem
+	#tag EndComputedProperty
 
 	#tag Property, Flags = &h21
 		Private ShouldClose As Boolean
@@ -545,6 +642,9 @@ End
 	#tag Constant, Name = kLabelStop, Type = String, Dynamic = False, Default = \"&Stop", Scope = Private
 	#tag EndConstant
 
+	#tag Constant, Name = kTextSize, Type = Double, Dynamic = False, Default = \"11", Scope = Private
+	#tag EndConstant
+
 
 #tag EndWindowCode
 
@@ -563,7 +663,8 @@ End
 		  dim rx as RegEx
 		  if rx is nil then
 		    rx = new RegEx
-		    rx.SearchPattern = "^(?:(.*\x20[[:punct:]]\x20)(.*\R+))|\R+|.+\R*"
+		    'rx.SearchPattern = "^(?:(.*\x20[[:punct:]]\x20)(.*\R+))|\R+|.+\R*"
+		    rx.SearchPattern = "(?mi-Us)^(\[?\d+(?:\]|:))((\w? )(\d{1,2} \w{3} \d{2}:\d{2}:\d{2}\.\d{3}) [[:punct:]] )?(.+)\R*|^.+\R*|^\R+"
 		  end if
 		  
 		  dim textLen as integer = fldOut.Text.Len
@@ -573,9 +674,22 @@ End
 		    dim newLine as string = match.SubExpressionString( 0 ).DefineEncoding( Encodings.UTF8 )
 		    fldOut.AppendText newLine
 		    if match.SubExpressionCount > 1 then
-		      static grey as color = Color.Gray
-		      dim firstPart as string = match.SubExpressionString( 1 ).DefineEncoding( Encodings.UTF8 )
-		      fldOut.StyledText.TextColor( textLen, firstPart.Len ) = grey
+		      static pidColor as color = Color.Blue
+		      static dateColor as color = Color.Gray
+		      static alertColor as color = Color.Red
+		      
+		      dim pid as string = match.SubExpressionString( 1 ).DefineEncoding( Encodings.UTF8 )
+		      fldOut.StyledText.TextColor( textLen, pid.Len ) = pidColor
+		      
+		      dim firstPart as string = match.SubExpressionString( 2 ).DefineEncoding( Encodings.UTF8 )
+		      dim lastPart as string = match.SubExpressionString( 5 )
+		      if firstPart = "" then
+		        if lastPart <> "" then
+		          fldOut.StyledText.TextColor( textLen + pid.Len, lastPart.Trim.Len ) = alertColor
+		        end if
+		      else
+		        fldOut.StyledText.TextColor( textLen + pid.Len, firstPart.Len ) = dateColor
+		      end if
 		    end if
 		    textLen = textLen + newLine.Len
 		    match = rx.Search
@@ -589,6 +703,16 @@ End
 	#tag EndEvent
 	#tag Event
 		Sub Started()
+		  #if TargetWindows then
+		    //
+		    // Emulate writing the PID file
+		    //
+		    dim tos as TextOutputStream = TextOutputStream.Create( PIDFile )
+		    tos.WriteLine me.PID
+		    tos.Close
+		    tos = nil
+		  #endif
+		  
 		  fldOut.SelStart = fldOut.Text.Len + 1
 		  fldPort.SelLength = 0
 		  
@@ -617,6 +741,13 @@ End
 	#tag EndEvent
 	#tag Event
 		Sub Stopped()
+		  #if TargetWindows then
+		    //
+		    // Emulate writing the PID file
+		    //
+		    PIDFile.Delete
+		  #endif
+		  
 		  if ShouldClose then
 		    self.Close
 		  elseif ShouldQuit then
@@ -677,6 +808,7 @@ End
 		  if not objServer.IsRunning then
 		    dim autoStart as FolderItem = App.DataFolder.Child( kAutoStartFilename )
 		    if autoStart.Exists then
+		      IsAutoStart = true
 		      OpenDocument autoStart
 		    end if
 		  end if

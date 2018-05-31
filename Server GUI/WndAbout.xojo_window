@@ -9,7 +9,7 @@ Begin Window WndAbout
    FullScreen      =   False
    FullScreenButton=   False
    HasBackColor    =   False
-   Height          =   220
+   Height          =   308
    ImplicitInstance=   True
    LiveResize      =   True
    MacProcID       =   0
@@ -26,6 +26,111 @@ Begin Window WndAbout
    Title           =   "About"
    Visible         =   True
    Width           =   382
+   Begin Label Labels
+      AutoDeactivate  =   True
+      Bold            =   False
+      DataField       =   ""
+      DataSource      =   ""
+      Enabled         =   True
+      Height          =   20
+      HelpTag         =   ""
+      Index           =   0
+      InitialParent   =   ""
+      Italic          =   False
+      Left            =   20
+      LockBottom      =   False
+      LockedInPosition=   False
+      LockLeft        =   True
+      LockRight       =   False
+      LockTop         =   True
+      Multiline       =   False
+      Scope           =   2
+      Selectable      =   False
+      TabIndex        =   0
+      TabPanelIndex   =   0
+      TabStop         =   True
+      Text            =   "Redis Server"
+      TextAlign       =   1
+      TextColor       =   &c00000000
+      TextFont        =   "System"
+      TextSize        =   0.0
+      TextUnit        =   0
+      Top             =   20
+      Transparent     =   False
+      Underline       =   False
+      Visible         =   True
+      Width           =   342
+   End
+   Begin Label Labels
+      AutoDeactivate  =   True
+      Bold            =   False
+      DataField       =   ""
+      DataSource      =   ""
+      Enabled         =   True
+      Height          =   199
+      HelpTag         =   ""
+      Index           =   1
+      InitialParent   =   ""
+      Italic          =   False
+      Left            =   20
+      LockBottom      =   False
+      LockedInPosition=   False
+      LockLeft        =   True
+      LockRight       =   False
+      LockTop         =   True
+      Multiline       =   True
+      Scope           =   2
+      Selectable      =   False
+      TabIndex        =   1
+      TabPanelIndex   =   0
+      TabStop         =   True
+      Text            =   "A GUI host for redis-server (https://redis.io)\n\nThis software is distributed AS-IS with no implied or expressed warranty for any particular purpose. See license and source code at\nhttps://github.com/ktekinay/xojo-redis\n\nMac executable compiled from source available at\nhttps://redis.io/download\n\nWindows executable downloaded from\nhttps://github.com/MicrosoftArchive/redis/releases"
+      TextAlign       =   1
+      TextColor       =   &c00000000
+      TextFont        =   "SmallSystem"
+      TextSize        =   0.0
+      TextUnit        =   0
+      Top             =   52
+      Transparent     =   False
+      Underline       =   False
+      Visible         =   True
+      Width           =   342
+   End
+   Begin Label lblVersion
+      AutoDeactivate  =   True
+      Bold            =   False
+      DataField       =   ""
+      DataSource      =   ""
+      Enabled         =   True
+      Height          =   20
+      HelpTag         =   ""
+      Index           =   -2147483648
+      InitialParent   =   ""
+      Italic          =   False
+      Left            =   262
+      LockBottom      =   False
+      LockedInPosition=   False
+      LockLeft        =   True
+      LockRight       =   False
+      LockTop         =   True
+      Multiline       =   False
+      Scope           =   2
+      Selectable      =   False
+      TabIndex        =   2
+      TabPanelIndex   =   0
+      TabStop         =   True
+      Text            =   "Version"
+      TextAlign       =   2
+      TextColor       =   &c00000000
+      TextFont        =   "SmallSystem"
+      TextSize        =   0.0
+      TextUnit        =   0
+      Top             =   263
+      Transparent     =   False
+      Underline       =   False
+      Visible         =   True
+      Width           =   100
+   End
 End
 #tag EndWindow
 
@@ -51,6 +156,15 @@ End
 
 #tag EndWindowCode
 
+#tag Events Labels
+#tag EndEvents
+#tag Events lblVersion
+	#tag Event
+		Sub Open()
+		  me.Text = App.ShortVersion
+		End Sub
+	#tag EndEvent
+#tag EndEvents
 #tag ViewBehavior
 	#tag ViewProperty
 		Name="Name"
