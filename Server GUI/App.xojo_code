@@ -8,6 +8,16 @@ Inherits Application
 	#tag EndEvent
 
 	#tag Event
+		Sub Close()
+		  if ApplicationMutex isa object then
+		    ApplicationMutex.Leave
+		    ApplicationMutex = nil
+		  end if
+		  
+		End Sub
+	#tag EndEvent
+
+	#tag Event
 		Sub EnableMenuItems()
 		  if WndServer.Visible then
 		    ServerShowHide.Text = kServerHide
@@ -115,6 +125,10 @@ Inherits Application
 		End Sub
 	#tag EndMethod
 
+
+	#tag Property, Flags = &h0
+		ApplicationMutex As Mutex
+	#tag EndProperty
 
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter

@@ -278,7 +278,7 @@ Begin Window WndServer
    Begin Timer tmrAfterOpen
       Index           =   -2147483648
       LockedInPosition=   False
-      Mode            =   1
+      Mode            =   0
       Period          =   20
       Scope           =   2
       TabPanelIndex   =   0
@@ -360,6 +360,57 @@ End
 
 	#tag Event
 		Sub Open()
+		  #if TargetWindows then
+		    //
+		    // Make sure it's not already running
+		    //
+		    
+		    dim mutexName as string = App.kBundleIdentifier
+		    dim m as new Mutex( mutexName )
+		    if not m.TryEnter then
+		      
+		      //
+		      // Give it a second
+		      //
+		      dim targetTicks as integer = Ticks + 60
+		      do
+		        App.YieldToNextThread
+		      loop until Ticks > targetTicks
+		      
+		      //
+		      // See if there are really two instances running
+		      //
+		      dim execName as string = App.ExecutableFile.Name
+		      dim fieldCount as integer = 3
+		      #if DebugBuild then
+		        execName = execName.Replace( "Debug", "" )
+		        fieldCount = 2
+		      #endif
+		      
+		      dim sh as new Shell
+		      sh.Execute "TASKLIST /FI ""IMAGENAME eq " + execName + """"
+		      dim result as string = sh.Result.DefineEncoding( Encodings.UTF8 ).Trim
+		      result = ReplaceLineEndings( result, EndOfLine )
+		      
+		      if result.CountFields( EndOfLine ) > fieldCount then
+		        //
+		        // There is another one running
+		        //
+		        m = nil
+		        
+		        dim dlg as new MessageDialog
+		        dlg.ActionButton.Caption = "Quit"
+		        dlg.Message = "Redis Server is already running."
+		        call dlg.ShowModal
+		        quit
+		        return
+		      end if
+		      
+		    end if
+		    
+		    App.ApplicationMutex = m
+		  #endif
+		  
 		  self.AcceptFileDrop ConfFileType.Config
 		  
 		  //
@@ -379,6 +430,8 @@ End
 		  #endif
 		  
 		  WndServer.Title = objServer.RedisVersion
+		  tmrAfterOpen.Mode = Timer.ModeSingle
+		  
 		End Sub
 	#tag EndEvent
 
