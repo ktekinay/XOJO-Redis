@@ -92,17 +92,40 @@ In Pipeline mode, a `RedisException` will be included in the array of results, a
 
 The project comes with unit tests for each function. Explore those to get an idea of how to use them.
 
+## Redis Server
+
+The `RedisServer_MTC` class will let you set up a redis server within your app quickly. You just need to give it the redis-server executable that you can download from the links below, or get from within this project. The former will ensure the latest versions, of course.
+
+The Server GUI project will run an instance of redis-server through a GUI for convenience. The Redis Server apps are available for download within the GitHub project.
+
+There are two "hidden" features of the app. First, holding down the option or alt key while pressing "Stop" will immediately kill the instance of redis-server without giving it an opportunity to clean up. That should be used sparingly. Second, you can drop a ".conf" or ".config" file directly onto the window to start (or restart) redis-server with it.
+
 ## Who Did This?
 
 This project was designed and implemented by:
 
 - Kem Tekinay (ktekinay at mactechnologies.com)
 
-## Binaries
+## External Resources
 
-The Mac binary was compiled from source downloaded from https://redis.io. The Windows binary was downloaded directly from https://github.com/MicrosoftArchive/redis/releases.
+### redis-server
+
+The Mac binary was compiled from source downloaded from https://redis.io. The Windows binary was downloaded directly from 
+
+[https://github.com/MicrosoftArchive/redis/releases](https://github.com/MicrosoftArchive/redis/releases)
+
+### Redis Server Icon
+
+The icon was available on [IconFinder](https://www.iconfinder.com/icons/1886359/archive_archives_database_files_hosting_server_storage_icon#size=16) and designed by [DinosoftLabs](https://www.iconfinder.com/dinosoftlabs).
 
 ## Release Notes
+
+**1.1** (Jun. __ 2018)
+
+- Added RedisServer\_MTC and unit tests.
+- Added Server GUI project.
+- Added `Shutdown`.
+- Updated unit tests to work on servers with higher latency.
 
 **1.0** (Jan. 22, 2018)
 
