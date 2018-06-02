@@ -2,7 +2,7 @@
 
 Xojo classes to connect to a Redis server.
 
-## Usage
+## Redis\_MTC Usage
 
 There are two classes. The main one, `Redis_MTC`, is meant for use in code. It will connect on instantiation based on standard parameters or those given in the Constructor.
 
@@ -110,7 +110,7 @@ This project was designed and implemented by:
 
 ### redis-server
 
-The Mac binary was compiled from source downloaded from https://redis.io. The Windows binary was downloaded directly from 
+The Mac binary was compiled from source downloaded from [the Redis website](https://redis.io). The Windows binary was downloaded directly from 
 
 [https://github.com/MicrosoftArchive/redis/releases](https://github.com/MicrosoftArchive/redis/releases)
 
@@ -120,7 +120,7 @@ The icon was available on [IconFinder](https://www.iconfinder.com/icons/1886359/
 
 ## Release Notes
 
-**1.1** (Jun. __ 2018)
+**1.1** (Jun. 2 2018)
 
 - Added RedisServer\_MTC and unit tests.
 - Added Server GUI project.
