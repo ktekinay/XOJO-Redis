@@ -1776,7 +1776,7 @@ Class Redis_MTC
 		      end if
 		    end if
 		    
-		    if isPipeline and not IsFlushingPipeline then
+		    if IsShuttingDown or ( isPipeline and not IsFlushingPipeline ) then
 		      r = true
 		      
 		    else
@@ -2560,6 +2560,22 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub Shutdown(mode As ShutdownMode = ShutdownMode.Default)
+		  dim params() as string
+		  
+		  select case mode
+		  case ShutdownMode.Save
+		    params.Append "SAVE"
+		  case ShutdownMode.NoSave
+		    params.Append "NOSAVE"
+		  end select
+		  
+		  IsShuttingDown = true
+		  call MaybeSend( "SHUTDOWN", params )
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Function SIntersection(keys() As String) As String()
 		  return SetFunction( "SINTER", keys )
 		  
@@ -2657,6 +2673,7 @@ Class Redis_MTC
 		  dim isConnecting as boolean = self.IsConnecting
 		  dim isDisconnecting as boolean = self.IsDisconnecting
 		  dim lastErrorCode as integer = self.LastErrorCode
+		  dim isShuttingDown as boolean = self.IsShuttingDown
 		  
 		  self.IsConnecting = false
 		  self.IsDisconnecting = false
@@ -2666,7 +2683,7 @@ Class Redis_MTC
 		    // Connecting failed, so do nothing
 		    //
 		    
-		  elseif lastErrorCode = 102 and isDisconnecting then
+		  elseif lastErrorCode = 102 and ( isDisconnecting or isShuttingDown ) then
 		    RaiseEvent Disconnected
 		    
 		  else
@@ -3713,6 +3730,10 @@ Class Redis_MTC
 		IsPipeline As Boolean
 	#tag EndComputedProperty
 
+	#tag Property, Flags = &h21
+		Private IsShuttingDown As Boolean
+	#tag EndProperty
+
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
@@ -3950,7 +3971,7 @@ Class Redis_MTC
 	#tag Constant, Name = kTypeUInt8, Type = String, Dynamic = False, Default = \"u8", Scope = Public
 	#tag EndConstant
 
-	#tag Constant, Name = kVersion, Type = String, Dynamic = False, Default = \"1.0", Scope = Public
+	#tag Constant, Name = kVersion, Type = String, Dynamic = False, Default = \"1.1", Scope = Public
 	#tag EndConstant
 
 
@@ -3970,6 +3991,12 @@ Class Redis_MTC
 		Always
 		  IfExists
 		IfNotExists
+	#tag EndEnum
+
+	#tag Enum, Name = ShutdownMode, Type = Integer, Flags = &h0
+		Default
+		  Save
+		NoSave
 	#tag EndEnum
 
 

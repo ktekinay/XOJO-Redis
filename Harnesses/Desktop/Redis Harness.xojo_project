@@ -1,5 +1,5 @@
 Type=Desktop
-RBProjectVersion=2017.03
+RBProjectVersion=2018.011
 MinIDEVersion=20070100
 Class=App;App.xojo_code;&h000000007E8A27FF;&h0000000000000000;false
 MenuBar=MainMenuBar;MainMenuBar.xojo_menu;&h00000000609857FF;&h0000000000000000;false
@@ -37,6 +37,8 @@ Class=CommandSpec;../../Redis Module/M_Redis/CommandSpec.xojo_code;&h0000000017D
 Class=SortedSetItem;../../Redis Module/M_Redis/SortedSetItem.xojo_code;&h000000007DF35FFF;&h0000000016792FFF;false
 Class=Placeholder;../../Redis Module/M_Redis/Placeholder.xojo_code;&h000000005DCB1FFF;&h0000000016792FFF;false
 Class=LatencyReport;../../Redis Module/M_Redis/LatencyReport.xojo_code;&h0000000043DF77FF;&h0000000016792FFF;false
+Class=RedisServerTests;../../Shared Resources/Unit Tests/RedisServerTests.xojo_code;&h000000003C2F1FFF;&h0000000074D067FF;false
+Class=RedisServer_MTC;../../Redis Module/M_Redis/RedisServer_MTC.xojo_code;&h0000000033840FFF;&h0000000016792FFF;false
 AppMenuBar=MainMenuBar
 MajorVersion=1
 MinorVersion=0

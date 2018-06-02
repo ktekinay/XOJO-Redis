@@ -1,0 +1,16 @@
+#tag FileTypeSet
+	#tag FileType
+		CodeName=Config
+		Extension=.conf;.config
+		Flags=&h9
+		MacCreator=
+		MacType=
+		Name=text/conf
+		UTI=
+		UTIConformsTo=
+		Description=
+		MimeType=
+		Imported=False
+	#tag EndFileType
+
+#tag EndFileTypeSet

@@ -86,6 +86,25 @@ Protected Module M_Redis
 		End Function
 	#tag EndMethod
 
+	#tag Method, Flags = &h21
+		Private Function ShellPathOf(f As FolderItem) As String
+		  if f is nil then
+		    return ""
+		  end if
+		  
+		  #if TargetWindows then
+		    dim path as string = f.NativePath
+		    if path.Right( 1 ) = "\" then
+		      path = path.Left( path.Len - 1 )
+		    end if
+		    return """" + path + """"
+		  #else
+		    return f.ShellPath
+		  #endif
+		  
+		End Function
+	#tag EndMethod
+
 	#tag Method, Flags = &h1
 		Protected Function VariantToSortedSetItemArray(varr() As Variant) As M_Redis.SortedSetItem()
 		  dim r() as M_Redis.SortedSetItem

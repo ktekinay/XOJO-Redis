@@ -15,6 +15,26 @@ Inherits ConsoleApplication
 		  App.RedisPort = mOptions.IntegerValue( kOptionPort, Redis_MTC.kDefaultPort )
 		  App.RedisPassword = mOptions.StringValue( kOptionPassword, "" )
 		  
+		  dim local as RedisServer_MTC
+		  if mOptions.BooleanValue( kOptionLocalServer, false ) then
+		    App.RedisAddress = "localhost"
+		    App.RedisPort = mOptions.IntegerValue( kOptionPort, 31999 )
+		    
+		    local = NewLocalServer
+		    local.Port = App.RedisPort
+		    local.Start
+		    
+		    dim targetTicks as integer = Ticks + 60
+		    while local.IsRunning and not local.IsReady and Ticks <= targetTicks
+		      App.DoEvents
+		    wend
+		    
+		    if not local.IsReady then
+		      print "Could not start local server: " + local.LastMessage
+		      return 1
+		    end if
+		  end if
+		  
 		  // Initialize Groups
 		  Print "Initializing Test Groups..."
 		  mController = New ConsoleTestController
@@ -29,6 +49,11 @@ Inherits ConsoleApplication
 		  While mController.IsRunning
 		    App.DoEvents
 		  Wend
+		  
+		  if local isa object then
+		    local.Stop
+		    local = nil
+		  end if
 		  
 		  // Output Results
 		  Print "Saving Results..."
@@ -73,6 +98,20 @@ Inherits ConsoleApplication
 		  
 		  mController.FilterTests(includes, excludes)
 		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function NewLocalServer() As RedisServer_MTC
+		  dim serverFile as FolderItem = App.ResourcesFolder.Child( "Redis Server Mac" ).Child( "redis-server" )
+		  dim configFile as FolderItem = App.ResourcesFolder.Child( "redis-port-31999-no-save.conf" )
+		  
+		  dim server as new RedisServer_MTC
+		  server.RedisServerFile = serverFile
+		  server.ConfigFile = configFile
+		  
+		  return server
+		  
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h21
@@ -183,6 +222,8 @@ Inherits ConsoleApplication
 		  parser.AddOption new Option( "a", kOptionAddress, "Redis server address", Option.OptionType.String )
 		  parser.AddOption new Option( "p", kOptionPort, "Redis server port", Option.OptionType.Integer )
 		  parser.AddOption new Option( "", kOptionPassword, "Redis server password", Option.OptionType.String )
+		  parser.AddOption new Option( "l", kOptionLocalServer, _
+		  "Start a local server on the given port (forces address to `localhost')", Option.OptionType.Boolean )
 		  
 		  parser.AdditionalHelpNotes = "If an export path is not specified, a default file named `" + kDefaultExportFileName + _
 		  "' will be created next to the app. If the path is a directory, a file of that name will be created within it."
@@ -224,6 +265,32 @@ Inherits ConsoleApplication
 		RedisPort As Integer = 6379
 	#tag EndProperty
 
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  #if TargetMacOS then
+			    
+			    dim contents as FolderItem = App.ExecutableFile.Parent
+			    return contents.Child( "Resources" )
+			    
+			  #else
+			    
+			    dim name as string = App.ExecutableFile.Name
+			    if name.Right( 4 ) = ".exe" then
+			      name = name.Left( name.Len - 4 )
+			    end if
+			    
+			    dim parent as FolderItem = App.ExecutableFile.Parent
+			    dim resourcesName as string = name + " Resources"
+			    dim resourcesFolder as FolderItem = parent.Child( resourcesName )
+			    return resourcesFolder
+			    
+			  #endif
+			End Get
+		#tag EndGetter
+		ResourcesFolder As FolderItem
+	#tag EndComputedProperty
+
 
 	#tag Constant, Name = kDefaultExportFileName, Type = String, Dynamic = False, Default = \"XojoUnitResults.txt", Scope = Private
 	#tag EndConstant
@@ -237,6 +304,9 @@ Inherits ConsoleApplication
 	#tag Constant, Name = kOptionInclude, Type = String, Dynamic = False, Default = \"include", Scope = Private
 	#tag EndConstant
 
+	#tag Constant, Name = kOptionLocalServer, Type = String, Dynamic = False, Default = \"local-server", Scope = Private
+	#tag EndConstant
+
 	#tag Constant, Name = kOptionPassword, Type = String, Dynamic = False, Default = \"password", Scope = Private
 	#tag EndConstant
 
@@ -245,6 +315,25 @@ Inherits ConsoleApplication
 
 
 	#tag ViewBehavior
+		#tag ViewProperty
+			Name="RedisAddress"
+			Group="Behavior"
+			InitialValue="localhost"
+			Type="String"
+			EditorType="MultiLineEditor"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="RedisPassword"
+			Group="Behavior"
+			Type="String"
+			EditorType="MultiLineEditor"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="RedisPort"
+			Group="Behavior"
+			InitialValue="6379"
+			Type="Integer"
+		#tag EndViewProperty
 	#tag EndViewBehavior
 End Class
 #tag EndClass

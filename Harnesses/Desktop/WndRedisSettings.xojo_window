@@ -9,7 +9,7 @@ Begin Window WndRedisSettings
    FullScreen      =   False
    FullScreenButton=   False
    HasBackColor    =   False
-   Height          =   164
+   Height          =   258
    ImplicitInstance=   True
    LiveResize      =   True
    MacProcID       =   0
@@ -168,6 +168,7 @@ Begin Window WndRedisSettings
       TextSize        =   0.0
       TextUnit        =   0
       Top             =   36
+      Transparent     =   False
       Underline       =   False
       UseFocusRing    =   True
       Visible         =   True
@@ -210,6 +211,7 @@ Begin Window WndRedisSettings
       TextSize        =   0.0
       TextUnit        =   0
       Top             =   68
+      Transparent     =   False
       Underline       =   False
       UseFocusRing    =   True
       Visible         =   True
@@ -252,13 +254,13 @@ Begin Window WndRedisSettings
       TextSize        =   0.0
       TextUnit        =   0
       Top             =   101
+      Transparent     =   False
       Underline       =   False
       UseFocusRing    =   True
       Visible         =   True
       Width           =   289
    End
    Begin Timer TmrOpen
-      Enabled         =   True
       Index           =   -2147483648
       LockedInPosition=   False
       Mode            =   1
@@ -266,18 +268,107 @@ Begin Window WndRedisSettings
       Scope           =   2
       TabPanelIndex   =   0
    End
+   Begin PushButton btnToggleLocal
+      AutoDeactivate  =   True
+      Bold            =   False
+      ButtonStyle     =   "0"
+      Cancel          =   False
+      Caption         =   "#kCaptionStartLocalServer"
+      Default         =   False
+      Enabled         =   True
+      Height          =   20
+      HelpTag         =   ""
+      Index           =   -2147483648
+      InitialParent   =   ""
+      Italic          =   False
+      Left            =   40
+      LockBottom      =   False
+      LockedInPosition=   False
+      LockLeft        =   True
+      LockRight       =   False
+      LockTop         =   True
+      Scope           =   2
+      TabIndex        =   6
+      TabPanelIndex   =   0
+      TabStop         =   True
+      TextFont        =   "System"
+      TextSize        =   0.0
+      TextUnit        =   0
+      Top             =   172
+      Transparent     =   False
+      Underline       =   False
+      Visible         =   True
+      Width           =   392
+   End
 End
 #tag EndWindow
 
 #tag WindowCode
+	#tag Event
+		Sub Close()
+		  RemoveHandler App.LocalServer.Started, WeakAddressOf Server_Started
+		  RemoveHandler App.LocalServer.Stopped, WeakAddressOf Server_Stopped
+		  
+		End Sub
+	#tag EndEvent
+
 	#tag Event
 		Sub Open()
 		  fldPassword.Text = App.RedisPassword
 		  fldAddress.Text = App.RedisAddress
 		  fldPort.Text = str( App.RedisPort )
 		  
+		  AddHandler App.LocalServer.Started, WeakAddressOf Server_Started
+		  AddHandler App.LocalServer.Stopped, WeakAddressOf Server_Stopped
+		  
 		End Sub
 	#tag EndEvent
+
+
+	#tag Method, Flags = &h21
+		Private Sub Server_Started(sender As RedisServer_MTC)
+		  #pragma unused sender
+		  
+		  UpdateControls
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub Server_Stopped(sender As RedisServer_MTC)
+		  UpdateControls
+		  
+		  if sender.LastMessage.InStr( "error" ) <> 0 or sender.LastMessage.InStr( "already in use" ) <> 0 then
+		    MsgBox sender.LastMessage
+		  end if
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub UpdateControls()
+		  dim isRunning as boolean = App.LocalServer.IsRunning
+		  dim shouldEnable as boolean = not isRunning
+		  
+		  fldAddress.Enabled = shouldEnable
+		  fldPort.Enabled = shouldEnable
+		  fldPassword.Enabled = shouldEnable
+		  
+		  if isRunning then
+		    btnToggleLocal.Caption = kCaptionStopLocalServer
+		  else
+		    btnToggleLocal.Caption = kCaptionStartLocalServer
+		  end if
+		  
+		  
+		End Sub
+	#tag EndMethod
+
+
+	#tag Constant, Name = kCaptionStartLocalServer, Type = String, Dynamic = False, Default = \"Start Local Server", Scope = Private
+	#tag EndConstant
+
+	#tag Constant, Name = kCaptionStopLocalServer, Type = String, Dynamic = False, Default = \"Stop Local Server", Scope = Private
+	#tag EndConstant
 
 
 #tag EndWindowCode
@@ -324,6 +415,22 @@ End
 	#tag Event
 		Sub Action()
 		  XojoUnitTestWindow.Show
+		  
+		End Sub
+	#tag EndEvent
+#tag EndEvents
+#tag Events btnToggleLocal
+	#tag Event
+		Sub Action()
+		  if App.LocalServer.IsRunning then
+		    App.LocalServer.Stop
+		  else
+		    fldAddress.Text = "localhost"
+		    fldPassword.Text = ""
+		    
+		    App.LocalServer.Port = App.RedisPort
+		    App.LocalServer.Start
+		  end if
 		  
 		End Sub
 	#tag EndEvent
