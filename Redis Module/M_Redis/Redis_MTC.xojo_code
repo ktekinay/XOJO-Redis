@@ -3971,7 +3971,7 @@ Class Redis_MTC
 	#tag Constant, Name = kTypeUInt8, Type = String, Dynamic = False, Default = \"u8", Scope = Public
 	#tag EndConstant
 
-	#tag Constant, Name = kVersion, Type = String, Dynamic = False, Default = \"1.0", Scope = Public
+	#tag Constant, Name = kVersion, Type = String, Dynamic = False, Default = \"1.1", Scope = Public
 	#tag EndConstant
 
 

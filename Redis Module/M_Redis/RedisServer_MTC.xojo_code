@@ -499,6 +499,9 @@ Class RedisServer_MTC
 	#tag Constant, Name = kDefaultPort, Type = Double, Dynamic = False, Default = \"6379", Scope = Public
 	#tag EndConstant
 
+	#tag Constant, Name = kVersion, Type = String, Dynamic = False, Default = \"1.1", Scope = Public
+	#tag EndConstant
+
 	#tag Constant, Name = kWindowsLib, Type = String, Dynamic = False, Default = \"kernel32.dll", Scope = Private
 	#tag EndConstant
 
