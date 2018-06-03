@@ -527,10 +527,11 @@ Class Redis_MTC
 		      call FlushPipeline( false )
 		    end if
 		    
-		    call MaybeSend( "QUIT", nil )
-		    
 		    IsDisconnecting = true
 		    IsConnecting = false
+		    
+		    call MaybeSend( "QUIT", nil )
+		    
 		    Socket.Disconnect
 		  end if
 		  
@@ -1685,6 +1686,20 @@ Class Redis_MTC
 		  // flushing the pipeline.
 		  //
 		  
+		  //
+		  // Can't accept commands in Monitor mode
+		  //
+		  if IsMonitor then
+		    if formattedCommand.Trim = "QUIT" or _
+		      (commandParts <> nil and commandParts.Ubound = 0 and commandParts( 0 ).Trim = "QUIT") then
+		      //
+		      // This is fine
+		      //
+		    else
+		      RaiseException 0, "Cannot issue commands in Monitor mode"
+		    end if
+		  end if
+		  
 		  static eol as string = self.EOL
 		  
 		  static dollars() as string
@@ -2075,6 +2090,138 @@ Class Redis_MTC
 		    end try
 		    
 		  end if
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub ProcessMonitor()
+		  const kQuote as integer = 34
+		  const kBackslash as integer = 92
+		  const kA as integer = 97
+		  const kB as integer = 98
+		  const kN as integer = 110
+		  const kR as integer = 114
+		  const kT as integer = 116
+		  const kX as integer = 120
+		  
+		  static rx as RegEx
+		  if rx is nil then
+		    rx = new RegEx
+		    rx.SearchPattern = "(?mi-Us)^\+(\d+\.\d+)\x20\[\d+\x20(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+)\]\x20(.*)"
+		  end if
+		  
+		  dim data as string = join( Buffer, "" )
+		  redim Buffer( -1 )
+		  
+		  if data = "" then
+		    return
+		  end if
+		  
+		  dim lines() as string = data.SplitB( EndOfLine.Windows )
+		  dim lastLine as string = lines.Pop
+		  if lastLine <> "" then
+		    //
+		    // It's incomplete so add it back to the buffer
+		    //
+		    Buffer.Append lastLine
+		  end if
+		  
+		  for i as integer = 0 to lines.Ubound
+		    dim match as RegExMatch = rx.Search( lines( i ) )
+		    
+		    if match is nil then
+		      RaiseException 0, "Unexpected monitor data: " + lines( i )
+		    end if
+		    
+		    dim timeString as string = match.SubExpressionString( 1 )
+		    dim host as string = match.SubExpressionString( 2 )
+		    dim portString as string = match.SubExpressionString( 3 )
+		    dim mbRaw as MemoryBlock = match.SubExpressionString( 4 )
+		    
+		    //
+		    // Parse the time
+		    //
+		    static baseDate as new Date( 1970, 1, 1, 0, 0, 0, 0.0 )
+		    dim issuedAt as new Date
+		    dim offset as double = issuedAt.GMTOffset
+		    issuedAt.GMTOffset = 0.0
+		    issuedAt.TotalSeconds = timeString.Val + baseDate.TotalSeconds
+		    issuedAt.GMTOffset = offset
+		    
+		    //
+		    // Parse the raw data
+		    //
+		    dim command as string
+		    dim params() as string
+		    dim index as integer
+		    dim chars() as string
+		    dim isBackslash as boolean
+		    
+		    dim p as ptr = mbRaw
+		    
+		    dim lastByteIndex as integer = mbRaw.Size - 1
+		    while index <= lastByteIndex
+		      dim b as integer = p.Byte( index )
+		      index = index + 1
+		      
+		      if isBackslash then
+		        isBackslash = false
+		        
+		        select case b
+		        case kA
+		          chars.Append &u07
+		        case kB
+		          chars.Append &u08
+		        case kN
+		          chars.Append &u0A
+		        case kR
+		          chars.Append &u0D
+		        case kT
+		          chars.Append &u09
+		        case kX
+		          dim hexValue as string = mbRaw.StringValue( index, 2 )
+		          index = index + 2
+		          chars.Append DecodeHex( hexValue )
+		        case else
+		          chars.Append ChrB( b )
+		        end select
+		        
+		      else
+		        select case b
+		        case kBackslash
+		          if MonitorInterpretsValues then
+		            isBackslash = true
+		          else
+		            chars.Append "\"
+		          end if
+		          
+		        case kQuote
+		          if chars.Ubound <> -1 then
+		            //
+		            // End of string
+		            //
+		            index = index + 1 // Skip the next space
+		            
+		            dim s as string = join( chars, "" ).DefineEncoding( Encodings.UTF8 )
+		            redim chars( -1 )
+		            
+		            if command = "" then
+		              command = s
+		            else
+		              params.Append s
+		            end if
+		          end if
+		          
+		        case else
+		          chars.Append ChrB( b )
+		          
+		        end select
+		      end if
+		    wend
+		    
+		    RaiseEvent MonitorAvailable( command, params, issuedAt, host, portString.Val )
+		  next i
 		  
 		End Sub
 	#tag EndMethod
@@ -2665,6 +2812,10 @@ Class Redis_MTC
 		  dim data as string = sender.ReadAll( Encodings.UTF8 )
 		  Buffer.Append data
 		  
+		  if IsMonitor and not IsDisconnecting then
+		    ProcessMonitor
+		  end if
+		  
 		End Sub
 	#tag EndMethod
 
@@ -2949,7 +3100,32 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub StartMonitor(interpretValues As Boolean = True)
+		  //
+		  // Go into Monitor mode
+		  //
+		  
+		  if IsPipeline then
+		    RaiseException 0, "Cannot start Monitor when Pipelines are active"
+		  end if
+		  
+		  dim r as variant = MaybeSend( "MONITOR", nil )
+		  if r.BooleanValue = false then
+		    RaiseException 0, "Could not start Monitor"
+		  end if
+		  
+		  IsMonitor = true
+		  MonitorInterpretsValues = interpretValues
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub StartPipeline(cnt As Integer = 10)
+		  if IsMonitor then
+		    RaiseException 0, "Can't start Pipeline in Monitor mode"
+		  end if
+		  
 		  if cnt < 0 then
 		    cnt = 0
 		  end if
@@ -3621,6 +3797,10 @@ Class Redis_MTC
 		Event Disconnected()
 	#tag EndHook
 
+	#tag Hook, Flags = &h0
+		Event MonitorAvailable(command As String, params() As String, issuedAt As Date, fromHost As String, fromPort As Integer)
+	#tag EndHook
+
 	#tag Hook, Flags = &h0, Description = 526169736564207768656E207573696E67206120506970656C696E6520616674657220736F6D65206F7220616C6C20646174612068617320617272697665642E205573652052656164506970656C696E6520746F20676574207468652063757272656E7420726573756C74732E204966206E6F7420636F6D706C6574652C2074686973206576656E742077696C6C2062652072616973656420616761696E207768656E206D6F7265206461746120617272697665732E2055736520466C757368506970656C696E6520746F207761697420666F7220616C6C2074686520726573756C7473206E6F772E
 		Event ResponseInPipeline()
 	#tag EndHook
@@ -3720,6 +3900,10 @@ Class Redis_MTC
 		Private IsFlushingPipeline As Boolean
 	#tag EndProperty
 
+	#tag Property, Flags = &h21
+		Private IsMonitor As Boolean
+	#tag EndProperty
+
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
@@ -3773,6 +3957,10 @@ Class Redis_MTC
 		#tag EndGetter
 		LatencyMs As Double
 	#tag EndComputedProperty
+
+	#tag Property, Flags = &h21
+		Private MonitorInterpretsValues As Boolean
+	#tag EndProperty
 
 	#tag Property, Flags = &h21
 		Private PipelineCheckTimer As Timer

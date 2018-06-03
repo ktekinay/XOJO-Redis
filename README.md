@@ -120,6 +120,10 @@ The icon was available on [IconFinder](https://www.iconfinder.com/icons/1886359/
 
 ## Release Notes
 
+**1.2** (__)
+
+- Added `Redis_MTC.StartMonitor` for Monitor mode.
+
 **1.1** (Jun. 2 2018)
 
 - Added RedisServer\_MTC and unit tests.

@@ -26,6 +26,16 @@ Inherits TestGroup
 		End Sub
 	#tag EndEvent
 
+	#tag Event
+		Sub TearDown()
+		  if Monitor isa object then
+		    RemoveHandler Monitor.MonitorAvailable, WeakAddressOf Monitor_MonitorAvailable
+		    Monitor = nil
+		  end if
+		  
+		End Sub
+	#tag EndEvent
+
 
 	#tag Method, Flags = &h0
 		Sub AppendTest()
@@ -858,6 +868,86 @@ Inherits TestGroup
 		  end if
 		  
 		  call r.Delete "xut:list1", "xut:list2"
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub MonitorRawTest()
+		  MonitorValue = ChrB( 10 ) + ChrB( 2 ) + "abc"
+		  MonitorValue = MonitorValue.DefineEncoding( Encodings.UTF8 )
+		  
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
+		  r.StartPipeline 30
+		  
+		  Monitor = new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
+		  AddHandler Monitor.MonitorAvailable, WeakAddressOf Monitor_MonitorAvailable
+		  
+		  Monitor.StartMonitor false
+		  Assert.Pass "Monitor started"
+		  
+		  MonitorCount = 5000
+		  for i as integer = 1 to MonitorCount
+		    call r.Set( "xut:monitortest-" + str( i ), MonitorValue, 2000 )
+		  next
+		  
+		  call r.FlushPipeline( false )
+		  
+		  MonitorValue = "\n\x02abc"
+		  AsyncAwait 5
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub MonitorTest()
+		  dim mbValue as new MemoryBlock( 27 )
+		  for i as integer = 0 to 26
+		    mbValue.Byte( i ) = i
+		  next
+		  MonitorValue = mbValue + "abcde🚗"
+		  MonitorValue = MonitorValue.DefineEncoding( Encodings.UTF8 )
+		  
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
+		  r.StartPipeline 30
+		  
+		  Monitor = new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
+		  AddHandler Monitor.MonitorAvailable, WeakAddressOf Monitor_MonitorAvailable
+		  
+		  Monitor.StartMonitor
+		  Assert.Pass "Monitor started"
+		  
+		  MonitorCount = 5000
+		  for i as integer = 1 to MonitorCount
+		    call r.Set( "xut:monitortest-" + str( i ), MonitorValue, 2000 )
+		  next
+		  
+		  call r.FlushPipeline( false )
+		  
+		  AsyncAwait 5
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub Monitor_MonitorAvailable(sender As Redis_MTC, command As String, params() As String, issuedAt As Date, fromHost As String, fromPort As Integer)
+		  #pragma unused sender
+		  
+		  dim now as new Date
+		  
+		  Assert.AreEqual "SET", command
+		  Assert.AreEqual 3, CType( params.Ubound, Integer ), "Paramer count does not match"
+		  Assert.AreEqual "xut:monitortest-", params( 0 ).Left( 16 ) , "First param does not match"
+		  Assert.AreSame MonitorValue, params( 1 ), "Value not as expected"
+		  Assert.IsNotNil issuedAt, "Date is nil"
+		  Assert.IsTrue abs( issuedAt.TotalSeconds - now.TotalSeconds ) < 2.0
+		  Assert.AreNotEqual "", fromHost, "No host"
+		  Assert.AreNotEqual 0, fromPort, "No port"
+		  
+		  MonitorCount = MonitorCount - 1
+		  if MonitorCount = 0 then
+		    AsyncComplete
+		  end if
 		  
 		End Sub
 	#tag EndMethod
@@ -1801,6 +1891,18 @@ Inherits TestGroup
 		End Sub
 	#tag EndMethod
 
+
+	#tag Property, Flags = &h21
+		Private Monitor As Redis_MTC
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private MonitorCount As Integer
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private MonitorValue As String
+	#tag EndProperty
 
 	#tag Property, Flags = &h21
 		Private Redis As Redis_MTC
