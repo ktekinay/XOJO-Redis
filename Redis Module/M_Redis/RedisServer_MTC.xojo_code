@@ -26,7 +26,10 @@ Class RedisServer_MTC
 		    // Make sure it's not going to quit on its own
 		    //
 		    ServerShell.Poll
-		    ServerShell.Poll
+		    
+		    if IsRunning then
+		      ServerShell.Poll
+		    end if
 		  end if
 		  
 		  if IsRunning then
@@ -263,10 +266,11 @@ Class RedisServer_MTC
 		  mPID = ""
 		  mConnectedPort = 0
 		  
+		  if IsRunning then
+		    Kill
+		  end if
+		  
 		  if ServerShell isa object then
-		    if ServerShell.IsRunning then
-		      Kill
-		    end if
 		    RemoveHandler ServerShell.DataAvailable, WeakAddressOf ServerShell_DataAvailable
 		    RemoveHandler ServerShell.Completed, WeakAddressOf ServerShell_Completed
 		    ServerShell = nil
