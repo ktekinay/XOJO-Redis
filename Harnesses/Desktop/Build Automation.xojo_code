@@ -17,5 +17,12 @@
 			Begin BuildStepList Windows
 				Begin BuildProjectStep Build
 				End
+				Begin CopyFilesBuildStep CopyRedisServerWin
+					AppliesTo = 0
+					Destination = 1
+					Subdirectory = 
+					FolderItem = Li4vLi4vLi4vU2hhcmVkJTIwUmVzb3VyY2VzL0NvcHklMjBJbnRvJTIwUHJvamVjdHMvUmVkaXMlMjBTZXJ2ZXIlMjBXaW5kb3dzLw==
+					FolderItem = Li4vLi4vLi4vU2hhcmVkJTIwUmVzb3VyY2VzL0NvcHklMjBJbnRvJTIwUHJvamVjdHMvcmVkaXMtcG9ydC0zMTk5OS1uby1zYXZlLmNvbmY=
+				End
 			End
 #tag EndBuildAutomation

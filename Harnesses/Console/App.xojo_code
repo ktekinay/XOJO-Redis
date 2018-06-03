@@ -63,6 +63,11 @@ Inherits ConsoleApplication
 		  
 		  PrintSummary(StdOut, mController)
 		  
+		  #if TargetWindows then
+		    print "Press any key to continue..."
+		    call Input
+		  #endif
+		  
 		End Function
 	#tag EndEvent
 
@@ -102,7 +107,12 @@ Inherits ConsoleApplication
 
 	#tag Method, Flags = &h0
 		Function NewLocalServer() As RedisServer_MTC
-		  dim serverFile as FolderItem = App.ResourcesFolder.Child( "Redis Server Mac" ).Child( "redis-server" )
+		  dim serverFile as FolderItem 
+		  #if TargetMacOS then
+		    serverFile = App.ResourcesFolder.Child( "Redis Server Mac" ).Child( "redis-server" )
+		  #else
+		    serverFile = App.ResourcesFolder.Child( "Redis Server Windows" ).Child( "redis-server.exe" )
+		  #endif
 		  dim configFile as FolderItem = App.ResourcesFolder.Child( "redis-port-31999-no-save.conf" )
 		  
 		  dim server as new RedisServer_MTC
