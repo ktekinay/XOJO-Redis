@@ -525,6 +525,11 @@ Class Redis_MTC
 		  if Socket.IsConnected then
 		    if IsPipeline then
 		      call FlushPipeline( false )
+		    else
+		      //
+		      // Get anything else in the pipeline
+		      //
+		      Socket.Poll
 		    end if
 		    
 		    IsDisconnecting = true
@@ -836,10 +841,12 @@ Class Redis_MTC
 		  //
 		  do
 		    ProcessBuffer
+		    
 		    if ( Results.Ubound + 1 ) = RequestCount then
 		      timedOut = false
 		      exit do
 		    end if
+		    
 		    Socket.Poll
 		  loop until targetTicks > 0 and Ticks > targetTicks
 		  

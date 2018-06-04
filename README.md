@@ -125,6 +125,7 @@ The icon was available on [IconFinder](https://www.iconfinder.com/icons/1886359/
 - Added `Redis_MTC.StartMonitor` for Monitor mode.
 - `RedisServer_MTC.Kill` is less fragile.
 - `Scan` variants will take an optional scan count.
+- `Disconnect` will flush the TCP buffer first.
 
 **1.1.1** (Jun. 3, 2018)
 
