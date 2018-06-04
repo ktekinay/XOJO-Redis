@@ -1081,12 +1081,17 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function HScan(key As String, pattern As String = "") As Dictionary
+		Function HScan(key As String, pattern As String = "", scanCount As Integer = 0) As Dictionary
 		  if IsPipeline then
 		    RaiseException 0, "HSCAN is not available within a Pipeline"
 		  end if
 		  
-		  dim parts() as string = array( "HSCAN", key, "", "COUNT", "20" )
+		  dim parts() as string = array( "HSCAN", key, "" )
+		  if scanCount > 0 then
+		    parts.Append "COUNT"
+		    parts.Append str( scanCount )
+		  end if
+		  
 		  if pattern <> "" then
 		    parts.Append "MATCH"
 		    parts.Append pattern
@@ -2463,12 +2468,17 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function Scan(pattern As String = "") As String()
+		Function Scan(pattern As String = "", scanCount As Integer = 0) As String()
 		  if IsPipeline then
 		    RaiseException 0, "SCAN is not available within a Pipeline"
 		  end if
 		  
-		  dim parts() as string = array( "SCAN", "", "COUNT", "20" )
+		  dim parts() as string = array( "SCAN", "" )
+		  if scanCount > 0 then
+		    parts.Append "COUNT"
+		    parts.Append str( scanCount )
+		  end if
+		  
 		  if pattern <> "" then
 		    parts.Append "MATCH"
 		    parts.Append pattern
@@ -3062,12 +3072,17 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function SScan(key As String, pattern As String = "*") As String()
+		Function SScan(key As String, pattern As String = "*", scanCount As Integer = 0) As String()
 		  if IsPipeline then
 		    RaiseException 0, "SSCAN is not available within a Pipeline"
 		  end if
 		  
-		  dim parts() as string = array( "SSCAN", key, "", "COUNT", "20" )
+		  dim parts() as string = array( "SSCAN", key, "" )
+		  if scanCount > 0  then
+		    parts.Append "COUNT"
+		    parts.Append str( scanCount )
+		  end if
+		  
 		  if pattern <> "" then
 		    parts.Append "MATCH"
 		    parts.Append pattern
@@ -3726,12 +3741,17 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function ZScan(key As String, pattern As String = "*") As M_Redis.SortedSetItem()
+		Function ZScan(key As String, pattern As String = "*", scanCount As Integer = 0) As M_Redis.SortedSetItem()
 		  if IsPipeline then
 		    RaiseException 0, "ZSCAN is not available within a Pipeline"
 		  end if
 		  
-		  dim parts() as string = array( "ZSCAN", key, "", "COUNT", "20" )
+		  dim parts() as string = array( "ZSCAN", key, "" )
+		  if scanCount > 0 then
+		    parts.Append "COUNT"
+		    parts.Append str( scanCount )
+		  end if
+		  
 		  if pattern <> "" then
 		    parts.Append "MATCH"
 		    parts.Append pattern

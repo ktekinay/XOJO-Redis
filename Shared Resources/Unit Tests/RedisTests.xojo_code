@@ -949,6 +949,9 @@ Inherits TestGroup
 		  
 		  MonitorCount = MonitorCount - 1
 		  if MonitorCount = 0 then
+		    dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
+		    r.SelectDB 1
+		    call r.Delete( r.Scan( "xut:*" ) )
 		    AsyncComplete
 		  end if
 		  
@@ -1206,8 +1209,14 @@ Inherits TestGroup
 		    Assert.IsTrue keys.IndexOf( "xut:key" + str( i ) ) <> -1
 		  next
 		  
+		  dim sw as new Stopwatch_MTC
+		  sw.Start
 		  keys = r.Scan( "xut:*" )
+		  sw.Stop
+		  dim elapsed as double = sw.ElapsedMilliseconds
+		  
 		  Assert.AreEqual CType( kUB * 2 + 1, Int32 ), keys.Ubound
+		  Assert.Message "Scan took " + elapsed.ToText( Xojo.Core.Locale.Current, "#,###,##0.0##" ) + " ms"
 		  
 		  for i as integer = 0 to kUB
 		    Assert.IsTrue keys.IndexOf( "xut:key" + str( i ) ) <> -1
