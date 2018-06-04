@@ -2108,7 +2108,7 @@ Class Redis_MTC
 		  static rx as RegEx
 		  if rx is nil then
 		    rx = new RegEx
-		    rx.SearchPattern = "(?mi-Us)^\+(\d+\.\d+)\x20\[\d+\x20(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+)\]\x20(.*)"
+		    rx.SearchPattern = "(?mi-Us)^\+(\d+\.\d+)\x20\[(\d+)\x20(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+)\]\x20(.*)"
 		  end if
 		  
 		  dim data as string = join( Buffer, "" )
@@ -2135,9 +2135,10 @@ Class Redis_MTC
 		    end if
 		    
 		    dim timeString as string = match.SubExpressionString( 1 )
-		    dim host as string = match.SubExpressionString( 2 )
-		    dim portString as string = match.SubExpressionString( 3 )
-		    dim mbRaw as MemoryBlock = match.SubExpressionString( 4 )
+		    dim dbString as string = match.SubExpressionString( 2 )
+		    dim host as string = match.SubExpressionString( 3 )
+		    dim portString as string = match.SubExpressionString( 4 )
+		    dim mbRaw as MemoryBlock = match.SubExpressionString( 5 )
 		    
 		    //
 		    // Parse the time
@@ -2220,7 +2221,7 @@ Class Redis_MTC
 		      end if
 		    wend
 		    
-		    RaiseEvent MonitorAvailable( command, params, issuedAt, host, portString.Val )
+		    RaiseEvent MonitorAvailable( command, params, dbString.Val, issuedAt, host, portString.Val )
 		  next i
 		  
 		End Sub
@@ -3798,7 +3799,7 @@ Class Redis_MTC
 	#tag EndHook
 
 	#tag Hook, Flags = &h0
-		Event MonitorAvailable(command As String, params() As String, issuedAt As Date, fromHost As String, fromPort As Integer)
+		Event MonitorAvailable(command As String, params() As String, db As Integer, issuedAt As Date, fromHost As String, fromPort As Integer)
 	#tag EndHook
 
 	#tag Hook, Flags = &h0, Description = 526169736564207768656E207573696E67206120506970656C696E6520616674657220736F6D65206F7220616C6C20646174612068617320617272697665642E205573652052656164506970656C696E6520746F20676574207468652063757272656E7420726573756C74732E204966206E6F7420636F6D706C6574652C2074686973206576656E742077696C6C2062652072616973656420616761696E207768656E206D6F7265206461746120617272697665732E2055736520466C757368506970656C696E6520746F207761697420666F7220616C6C2074686520726573756C7473206E6F772E
