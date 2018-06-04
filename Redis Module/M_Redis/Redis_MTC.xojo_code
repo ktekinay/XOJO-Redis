@@ -2140,7 +2140,14 @@ Class Redis_MTC
 		  end if
 		  
 		  for i as integer = 0 to lines.Ubound
-		    dim match as RegExMatch = rx.Search( lines( i ) )
+		    dim thisLine as string = lines( i )
+		    
+		    if IsDisconnecting and thisLine = "+OK" then
+		      Results.Append true
+		      continue for i
+		    end if
+		    
+		    dim match as RegExMatch = rx.Search( thisLine )
 		    
 		    if match is nil then
 		      RaiseException 0, "Unexpected monitor data: " + lines( i )
@@ -2830,7 +2837,7 @@ Class Redis_MTC
 		  dim data as string = sender.ReadAll( Encodings.UTF8 )
 		  Buffer.Append data
 		  
-		  if IsMonitor and not IsDisconnecting then
+		  if IsMonitor then
 		    ProcessMonitor
 		  end if
 		  
