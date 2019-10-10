@@ -341,6 +341,7 @@ Class Redis_MTC
 		    return true
 		  end if
 		  
+		  zLastErrorCode = 0
 		  dim connectionError as RuntimeException
 		  
 		  IsConnecting = true
@@ -500,7 +501,11 @@ Class Redis_MTC
 		  if Socket isa object then
 		    Disconnect
 		    RemoveHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
-		    RemoveHandler Socket.Error, WeakAddressOf Socket_Error
+		    #if XojoVersion < 2019.02
+		      RemoveHandler Socket.Error, WeakAddressOf Socket_Error
+		    #else
+		      RemoveHandler Socket.Error, WeakAddressOf Socket_ErrorWithException
+		    #endif
 		    Socket = nil
 		  end if
 		  
@@ -1267,8 +1272,11 @@ Class Redis_MTC
 		    Socket.Address = kDefaultAddress
 		    Socket.Port = kDefaultPort
 		    AddHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
-		    AddHandler Socket.Error, WeakAddressOf Socket_Error
-		    
+		    #if XojoVersion < 2019.02
+		      AddHandler Socket.Error, WeakAddressOf Socket_Error
+		    #else
+		      AddHandler Socket.Error, WeakAddressOf Socket_ErrorWithException
+		    #endif
 		    PipelineCheckTimer = new Timer
 		    AddHandler PipelineCheckTimer.Action, WeakAddressOf PipelineCheckTimer_Action
 		    PipelineCheckTimer.Period = 20
@@ -2830,6 +2838,8 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h21
 		Private Sub Socket_DataAvailable(sender As TCPSocket)
+		  zLastErrorCode = 0
+		  
 		  if TrackLatency then
 		    LatencyMicrosecs = Microseconds - DataSentMicrosecs
 		  end if
@@ -2846,10 +2856,23 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h21
 		Private Sub Socket_Error(sender As TCPSocket)
+		  Socket_ErrorWithException( sender, nil )
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub Socket_ErrorWithException(sender As TCPSocket, err As RuntimeException)
 		  dim isConnecting as boolean = self.IsConnecting
 		  dim isDisconnecting as boolean = self.IsDisconnecting
-		  dim lastErrorCode as integer = self.LastErrorCode
+		  dim lastErrorCode as integer
+		  #if XojoVersion < 2019.02
+		    lastErrorCode = sender.LastErrorCode
+		  #else
+		    lastErrorCode = err.ErrorNumber
+		  #endif
 		  dim isShuttingDown as boolean = self.IsShuttingDown
+		  
+		  zLastErrorCode = lastErrorCode
 		  
 		  self.IsConnecting = false
 		  self.IsDisconnecting = false
@@ -2895,7 +2918,12 @@ Class Redis_MTC
 		    //
 		    // Give a subclass the chance to handle it
 		    //
-		    dim handled as boolean = RaiseEvent SocketError( lastErrorCode, msg ) 
+		    if err is nil then
+		      err = new RedisException( msg )
+		      err.ErrorNumber = lastErrorCode
+		    end if
+		    
+		    dim handled as boolean = RaiseEvent SocketError( lastErrorCode, msg, err ) 
 		    
 		    if not handled then
 		      RaiseException lastErrorCode, msg
@@ -3841,7 +3869,7 @@ Class Redis_MTC
 	#tag EndHook
 
 	#tag Hook, Flags = &h0, Description = 416E20756E65706563746564206572726F7220686173206F6363757272656420696E2074686520544350536F636B65742E20416E20657863657074696F6E2077696C6C2062652072616973656420756E6C6573732074686973206576656E742072657475726E7320547275652E
-		Event SocketError(code As Integer, msg As String) As Boolean
+		Event SocketError(code As Integer, msg As String, err As RuntimeException) As Boolean
 	#tag EndHook
 
 
@@ -3970,7 +3998,7 @@ Class Redis_MTC
 			  if Socket is nil then
 			    return 0
 			  else
-			    return Socket.LastErrorCode
+			    return zLastErrorCode
 			  end if
 			  
 			End Get
@@ -4106,6 +4134,10 @@ Class Redis_MTC
 
 	#tag Property, Flags = &h21
 		Attributes( hidden ) Private zLastCommand As String
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private zLastErrorCode As Integer
 	#tag EndProperty
 
 	#tag Property, Flags = &h21

@@ -52,7 +52,7 @@ Results from `Execute` are always a Variant and it's up to you to interpret them
 
 If you prefer, you can use the `ResponseInPipeline` event to get waiting results. It would be most efficient to use `ReadPipeline` there but you could `FlushPipeline` instead.
 
-Using a Pipeline is more efficient than the send/wait approach, but not as convenient. In tests, regular mode (no pipeline) could handle around 25k SET commands per second on a local server whereas 10 Pipelines could do around 340k per second. Pipeline results are "raw" and it's up to you to match them to the command that was issued to obtain them, and to interpret them. 
+Using a Pipeline is more efficient than the send/wait approach, but not as convenient. In tests, regular mode (no pipeline) could handle around 25k SET commands per second on a local server whereas 10 Pipelines could do around 340k per second. Pipeline results are "raw" and it's up to you to match them to the command that was issued to obtain them, and to interpret them.
 
 Use `StartPipeline( cnt )` to change to Pipeline mode. Once in Pipeline mode, results from individual functions will be meaningless and can be ignored. Use `FlushPipeline( false )` to get the final results and turn off the Pipeline.
 
@@ -110,7 +110,7 @@ This project was designed and implemented by:
 
 ### redis-server
 
-The Mac binary was compiled from source downloaded from [the Redis website](https://redis.io). The Windows binary was downloaded directly from 
+The Mac binary was compiled from source downloaded from [the Redis website](https://redis.io). The Windows binary was downloaded directly from
 
 [https://github.com/MicrosoftArchive/redis/releases](https://github.com/MicrosoftArchive/redis/releases)
 
@@ -126,6 +126,7 @@ The icon was available on [IconFinder](https://www.iconfinder.com/icons/1886359/
 - `RedisServer_MTC.Kill` is less fragile.
 - `Scan` variants will take an optional scan count.
 - `Disconnect` will flush the TCP buffer first.
+- Updated code to work with Xojo 2019.02.
 
 **1.1.1** (Jun. 3, 2018)
 

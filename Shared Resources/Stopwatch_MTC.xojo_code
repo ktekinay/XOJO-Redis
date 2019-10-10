@@ -60,7 +60,7 @@ Protected Class Stopwatch_MTC
 		Sub Stop()
 		  #pragma BackgroundTasks False
 		  
-		  dim ms as Double = microseconds
+		  dim ms as Double = Microseconds
 		  
 		  if zRunning then
 		    zStopMS = ms
