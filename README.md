@@ -120,7 +120,7 @@ The icon was available on [IconFinder](https://www.iconfinder.com/icons/1886359/
 
 ## Release Notes
 
-**1.2** (__)
+**1.2** (Oct. 10, 2019)
 
 - Added `Redis_MTC.StartMonitor` for Monitor mode.
 - `RedisServer_MTC.Kill` is less fragile.
