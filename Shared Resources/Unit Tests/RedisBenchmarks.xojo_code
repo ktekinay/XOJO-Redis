@@ -54,6 +54,48 @@ Inherits TestGroup
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub ScanTest()
+		  dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
+		  
+		  dim keys() as string = r.Scan( "xut:*" )
+		  call r.Delete( keys )
+		  
+		  const kUB as Int32 = 99999
+		  dim arrCount as integer = kUB + 1
+		  Assert.Message arrCount.ToText( Xojo.Core.Locale.Current, "#,###,##0" ) + " items"
+		  
+		  r.StartPipeline 50
+		  for i as integer = 0 to kUB
+		    call r.Set( "xut:key" + str( i ), "value", 5000 )
+		  next
+		  call r.FlushPipeline( false )
+		  
+		  dim sw as new Stopwatch_MTC
+		  sw.Start
+		  keys = r.Scan( "xut:*" )
+		  sw.Stop
+		  dim elapsed as double = sw.ElapsedMilliseconds
+		  
+		  Assert.AreEqual CType( kUB, Int32 ), keys.Ubound
+		  Assert.Message "Scan (default) took " + _
+		  elapsed.ToText( Xojo.Core.Locale.Current, "#,###,##0.0##" ) + " ms"
+		  
+		  sw.Reset
+		  sw.Start
+		  keys = r.Scan( "xut:*", 1000 )
+		  sw.Stop
+		  elapsed = sw.ElapsedMilliseconds
+		  
+		  Assert.AreEqual CType( kUB, Int32 ), keys.Ubound
+		  Assert.Message "Scan (1000) took " + _
+		  elapsed.ToText( Xojo.Core.Locale.Current, "#,###,##0.0##" ) + " ms"
+		  
+		  call r.Delete( keys )
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub SetTest()
 		  #if not DebugBuild then
 		    #pragma BackgroundTasks false
@@ -92,19 +134,27 @@ Inherits TestGroup
 	#tag ViewBehavior
 		#tag ViewProperty
 			Name="Duration"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Double"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="FailedTestCount"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="IncludeGroup"
+			Visible=false
 			Group="Behavior"
 			InitialValue="True"
 			Type="Boolean"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Index"
@@ -112,11 +162,15 @@ Inherits TestGroup
 			Group="ID"
 			InitialValue="-2147483648"
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="IsRunning"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Boolean"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Left"
@@ -124,48 +178,71 @@ Inherits TestGroup
 			Group="Position"
 			InitialValue="0"
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Name"
 			Visible=true
 			Group="ID"
+			InitialValue=""
 			Type="String"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="NotImplementedCount"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="PassedTestCount"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="RunTestCount"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="SkippedTestCount"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="StopTestOnFail"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Boolean"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Super"
 			Visible=true
 			Group="ID"
+			InitialValue=""
 			Type="String"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="TestCount"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Top"
@@ -173,6 +250,7 @@ Inherits TestGroup
 			Group="Position"
 			InitialValue="0"
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 	#tag EndViewBehavior
 End Class

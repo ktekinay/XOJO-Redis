@@ -99,6 +99,7 @@ Inherits Application
 	#tag ViewBehavior
 		#tag ViewProperty
 			Name="RedisAddress"
+			Visible=false
 			Group="Behavior"
 			InitialValue="localhost"
 			Type="String"
@@ -106,15 +107,19 @@ Inherits Application
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="RedisPassword"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="String"
 			EditorType="MultiLineEditor"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="RedisPort"
+			Visible=false
 			Group="Behavior"
 			InitialValue="6379"
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 	#tag EndViewBehavior
 End Class

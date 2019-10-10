@@ -341,6 +341,7 @@ Class Redis_MTC
 		    return true
 		  end if
 		  
+		  zLastErrorCode = 0
 		  dim connectionError as RuntimeException
 		  
 		  IsConnecting = true
@@ -500,7 +501,11 @@ Class Redis_MTC
 		  if Socket isa object then
 		    Disconnect
 		    RemoveHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
-		    RemoveHandler Socket.Error, WeakAddressOf Socket_Error
+		    #if XojoVersion < 2019.02
+		      RemoveHandler Socket.Error, WeakAddressOf Socket_Error
+		    #else
+		      RemoveHandler Socket.Error, WeakAddressOf Socket_ErrorWithException
+		    #endif
 		    Socket = nil
 		  end if
 		  
@@ -525,12 +530,18 @@ Class Redis_MTC
 		  if Socket.IsConnected then
 		    if IsPipeline then
 		      call FlushPipeline( false )
+		    else
+		      //
+		      // Get anything else in the pipeline
+		      //
+		      Socket.Poll
 		    end if
-		    
-		    call MaybeSend( "QUIT", nil )
 		    
 		    IsDisconnecting = true
 		    IsConnecting = false
+		    
+		    call MaybeSend( "QUIT", nil )
+		    
 		    Socket.Disconnect
 		  end if
 		  
@@ -835,10 +846,12 @@ Class Redis_MTC
 		  //
 		  do
 		    ProcessBuffer
+		    
 		    if ( Results.Ubound + 1 ) = RequestCount then
 		      timedOut = false
 		      exit do
 		    end if
+		    
 		    Socket.Poll
 		  loop until targetTicks > 0 and Ticks > targetTicks
 		  
@@ -1080,12 +1093,17 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function HScan(key As String, pattern As String = "") As Dictionary
+		Function HScan(key As String, pattern As String = "", scanCount As Integer = 0) As Dictionary
 		  if IsPipeline then
 		    RaiseException 0, "HSCAN is not available within a Pipeline"
 		  end if
 		  
-		  dim parts() as string = array( "HSCAN", key, "", "COUNT", "20" )
+		  dim parts() as string = array( "HSCAN", key, "" )
+		  if scanCount > 0 then
+		    parts.Append "COUNT"
+		    parts.Append str( scanCount )
+		  end if
+		  
 		  if pattern <> "" then
 		    parts.Append "MATCH"
 		    parts.Append pattern
@@ -1254,8 +1272,11 @@ Class Redis_MTC
 		    Socket.Address = kDefaultAddress
 		    Socket.Port = kDefaultPort
 		    AddHandler Socket.DataAvailable, WeakAddressOf Socket_DataAvailable
-		    AddHandler Socket.Error, WeakAddressOf Socket_Error
-		    
+		    #if XojoVersion < 2019.02
+		      AddHandler Socket.Error, WeakAddressOf Socket_Error
+		    #else
+		      AddHandler Socket.Error, WeakAddressOf Socket_ErrorWithException
+		    #endif
 		    PipelineCheckTimer = new Timer
 		    AddHandler PipelineCheckTimer.Action, WeakAddressOf PipelineCheckTimer_Action
 		    PipelineCheckTimer.Period = 20
@@ -1685,6 +1706,20 @@ Class Redis_MTC
 		  // flushing the pipeline.
 		  //
 		  
+		  //
+		  // Can't accept commands in Monitor mode
+		  //
+		  if IsMonitor then
+		    if formattedCommand.Trim = "QUIT" or _
+		      (commandParts <> nil and commandParts.Ubound = 0 and commandParts( 0 ).Trim = "QUIT") then
+		      //
+		      // This is fine
+		      //
+		    else
+		      RaiseException 0, "Cannot issue commands in Monitor mode"
+		    end if
+		  end if
+		  
 		  static eol as string = self.EOL
 		  
 		  static dollars() as string
@@ -2080,6 +2115,146 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h21
+		Private Sub ProcessMonitor()
+		  const kQuote as integer = 34
+		  const kBackslash as integer = 92
+		  const kA as integer = 97
+		  const kB as integer = 98
+		  const kN as integer = 110
+		  const kR as integer = 114
+		  const kT as integer = 116
+		  const kX as integer = 120
+		  
+		  static rx as RegEx
+		  if rx is nil then
+		    rx = new RegEx
+		    rx.SearchPattern = "(?mi-Us)^\+(\d+\.\d+)\x20\[(\d+)\x20(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+)\]\x20(.*)"
+		  end if
+		  
+		  dim data as string = join( Buffer, "" )
+		  redim Buffer( -1 )
+		  
+		  if data = "" then
+		    return
+		  end if
+		  
+		  dim lines() as string = data.SplitB( EndOfLine.Windows )
+		  dim lastLine as string = lines.Pop
+		  if lastLine <> "" then
+		    //
+		    // It's incomplete so add it back to the buffer
+		    //
+		    Buffer.Append lastLine
+		  end if
+		  
+		  for i as integer = 0 to lines.Ubound
+		    dim thisLine as string = lines( i )
+		    
+		    if IsDisconnecting and thisLine = "+OK" then
+		      Results.Append true
+		      continue for i
+		    end if
+		    
+		    dim match as RegExMatch = rx.Search( thisLine )
+		    
+		    if match is nil then
+		      RaiseException 0, "Unexpected monitor data: " + lines( i )
+		    end if
+		    
+		    dim timeString as string = match.SubExpressionString( 1 )
+		    dim dbString as string = match.SubExpressionString( 2 )
+		    dim host as string = match.SubExpressionString( 3 )
+		    dim portString as string = match.SubExpressionString( 4 )
+		    dim mbRaw as MemoryBlock = match.SubExpressionString( 5 )
+		    
+		    //
+		    // Parse the time
+		    //
+		    static baseDate as new Date( 1970, 1, 1, 0, 0, 0, 0.0 )
+		    dim issuedAt as new Date
+		    dim offset as double = issuedAt.GMTOffset
+		    issuedAt.GMTOffset = 0.0
+		    issuedAt.TotalSeconds = timeString.Val + baseDate.TotalSeconds
+		    issuedAt.GMTOffset = offset
+		    
+		    //
+		    // Parse the raw data
+		    //
+		    dim command as string
+		    dim params() as string
+		    dim index as integer
+		    dim chars() as string
+		    dim isBackslash as boolean
+		    
+		    dim p as ptr = mbRaw
+		    
+		    dim lastByteIndex as integer = mbRaw.Size - 1
+		    while index <= lastByteIndex
+		      dim b as integer = p.Byte( index )
+		      index = index + 1
+		      
+		      if isBackslash then
+		        isBackslash = false
+		        
+		        select case b
+		        case kA
+		          chars.Append &u07
+		        case kB
+		          chars.Append &u08
+		        case kN
+		          chars.Append &u0A
+		        case kR
+		          chars.Append &u0D
+		        case kT
+		          chars.Append &u09
+		        case kX
+		          dim hexValue as string = mbRaw.StringValue( index, 2 )
+		          index = index + 2
+		          chars.Append DecodeHex( hexValue )
+		        case else
+		          chars.Append ChrB( b )
+		        end select
+		        
+		      else
+		        select case b
+		        case kBackslash
+		          if MonitorInterpretsValues then
+		            isBackslash = true
+		          else
+		            chars.Append "\"
+		          end if
+		          
+		        case kQuote
+		          if chars.Ubound <> -1 then
+		            //
+		            // End of string
+		            //
+		            index = index + 1 // Skip the next space
+		            
+		            dim s as string = join( chars, "" ).DefineEncoding( Encodings.UTF8 )
+		            redim chars( -1 )
+		            
+		            if command = "" then
+		              command = s
+		            else
+		              params.Append s
+		            end if
+		          end if
+		          
+		        case else
+		          chars.Append ChrB( b )
+		          
+		        end select
+		      end if
+		    wend
+		    
+		    RaiseEvent MonitorAvailable( command, params, dbString.Val, issuedAt, host, portString.Val )
+		  next i
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
 		Private Sub RaiseException(code As Integer, msg As String)
 		  dim err as new RuntimeException
 		  err.ErrorNumber = code
@@ -2315,12 +2490,17 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function Scan(pattern As String = "") As String()
+		Function Scan(pattern As String = "", scanCount As Integer = 0) As String()
 		  if IsPipeline then
 		    RaiseException 0, "SCAN is not available within a Pipeline"
 		  end if
 		  
-		  dim parts() as string = array( "SCAN", "", "COUNT", "20" )
+		  dim parts() as string = array( "SCAN", "" )
+		  if scanCount > 0 then
+		    parts.Append "COUNT"
+		    parts.Append str( scanCount )
+		  end if
+		  
 		  if pattern <> "" then
 		    parts.Append "MATCH"
 		    parts.Append pattern
@@ -2658,6 +2838,8 @@ Class Redis_MTC
 
 	#tag Method, Flags = &h21
 		Private Sub Socket_DataAvailable(sender As TCPSocket)
+		  zLastErrorCode = 0
+		  
 		  if TrackLatency then
 		    LatencyMicrosecs = Microseconds - DataSentMicrosecs
 		  end if
@@ -2665,15 +2847,32 @@ Class Redis_MTC
 		  dim data as string = sender.ReadAll( Encodings.UTF8 )
 		  Buffer.Append data
 		  
+		  if IsMonitor then
+		    ProcessMonitor
+		  end if
+		  
 		End Sub
 	#tag EndMethod
 
 	#tag Method, Flags = &h21
 		Private Sub Socket_Error(sender As TCPSocket)
+		  Socket_ErrorWithException( sender, nil )
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub Socket_ErrorWithException(sender As TCPSocket, err As RuntimeException)
 		  dim isConnecting as boolean = self.IsConnecting
 		  dim isDisconnecting as boolean = self.IsDisconnecting
-		  dim lastErrorCode as integer = self.LastErrorCode
+		  dim lastErrorCode as integer
+		  #if XojoVersion < 2019.02
+		    lastErrorCode = sender.LastErrorCode
+		  #else
+		    lastErrorCode = err.ErrorNumber
+		  #endif
 		  dim isShuttingDown as boolean = self.IsShuttingDown
+		  
+		  zLastErrorCode = lastErrorCode
 		  
 		  self.IsConnecting = false
 		  self.IsDisconnecting = false
@@ -2719,7 +2918,12 @@ Class Redis_MTC
 		    //
 		    // Give a subclass the chance to handle it
 		    //
-		    dim handled as boolean = RaiseEvent SocketError( lastErrorCode, msg ) 
+		    if err is nil then
+		      err = new RedisException( msg )
+		      err.ErrorNumber = lastErrorCode
+		    end if
+		    
+		    dim handled as boolean = RaiseEvent SocketError( lastErrorCode, msg, err ) 
 		    
 		    if not handled then
 		      RaiseException lastErrorCode, msg
@@ -2910,12 +3114,17 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function SScan(key As String, pattern As String = "*") As String()
+		Function SScan(key As String, pattern As String = "*", scanCount As Integer = 0) As String()
 		  if IsPipeline then
 		    RaiseException 0, "SSCAN is not available within a Pipeline"
 		  end if
 		  
-		  dim parts() as string = array( "SSCAN", key, "", "COUNT", "20" )
+		  dim parts() as string = array( "SSCAN", key, "" )
+		  if scanCount > 0  then
+		    parts.Append "COUNT"
+		    parts.Append str( scanCount )
+		  end if
+		  
 		  if pattern <> "" then
 		    parts.Append "MATCH"
 		    parts.Append pattern
@@ -2949,7 +3158,32 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
+		Sub StartMonitor(interpretValues As Boolean = True)
+		  //
+		  // Go into Monitor mode
+		  //
+		  
+		  if IsPipeline then
+		    RaiseException 0, "Cannot start Monitor when Pipelines are active"
+		  end if
+		  
+		  dim r as variant = MaybeSend( "MONITOR", nil )
+		  if r.BooleanValue = false then
+		    RaiseException 0, "Could not start Monitor"
+		  end if
+		  
+		  IsMonitor = true
+		  MonitorInterpretsValues = interpretValues
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
 		Sub StartPipeline(cnt As Integer = 10)
+		  if IsMonitor then
+		    RaiseException 0, "Can't start Pipeline in Monitor mode"
+		  end if
+		  
 		  if cnt < 0 then
 		    cnt = 0
 		  end if
@@ -3549,12 +3783,17 @@ Class Redis_MTC
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
-		Function ZScan(key As String, pattern As String = "*") As M_Redis.SortedSetItem()
+		Function ZScan(key As String, pattern As String = "*", scanCount As Integer = 0) As M_Redis.SortedSetItem()
 		  if IsPipeline then
 		    RaiseException 0, "ZSCAN is not available within a Pipeline"
 		  end if
 		  
-		  dim parts() as string = array( "ZSCAN", key, "", "COUNT", "20" )
+		  dim parts() as string = array( "ZSCAN", key, "" )
+		  if scanCount > 0 then
+		    parts.Append "COUNT"
+		    parts.Append str( scanCount )
+		  end if
+		  
 		  if pattern <> "" then
 		    parts.Append "MATCH"
 		    parts.Append pattern
@@ -3621,12 +3860,16 @@ Class Redis_MTC
 		Event Disconnected()
 	#tag EndHook
 
+	#tag Hook, Flags = &h0
+		Event MonitorAvailable(command As String, params() As String, db As Integer, issuedAt As Date, fromHost As String, fromPort As Integer)
+	#tag EndHook
+
 	#tag Hook, Flags = &h0, Description = 526169736564207768656E207573696E67206120506970656C696E6520616674657220736F6D65206F7220616C6C20646174612068617320617272697665642E205573652052656164506970656C696E6520746F20676574207468652063757272656E7420726573756C74732E204966206E6F7420636F6D706C6574652C2074686973206576656E742077696C6C2062652072616973656420616761696E207768656E206D6F7265206461746120617272697665732E2055736520466C757368506970656C696E6520746F207761697420666F7220616C6C2074686520726573756C7473206E6F772E
 		Event ResponseInPipeline()
 	#tag EndHook
 
 	#tag Hook, Flags = &h0, Description = 416E20756E65706563746564206572726F7220686173206F6363757272656420696E2074686520544350536F636B65742E20416E20657863657074696F6E2077696C6C2062652072616973656420756E6C6573732074686973206576656E742072657475726E7320547275652E
-		Event SocketError(code As Integer, msg As String) As Boolean
+		Event SocketError(code As Integer, msg As String, err As RuntimeException) As Boolean
 	#tag EndHook
 
 
@@ -3720,6 +3963,10 @@ Class Redis_MTC
 		Private IsFlushingPipeline As Boolean
 	#tag EndProperty
 
+	#tag Property, Flags = &h21
+		Private IsMonitor As Boolean
+	#tag EndProperty
+
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
@@ -3751,7 +3998,7 @@ Class Redis_MTC
 			  if Socket is nil then
 			    return 0
 			  else
-			    return Socket.LastErrorCode
+			    return zLastErrorCode
 			  end if
 			  
 			End Get
@@ -3773,6 +4020,10 @@ Class Redis_MTC
 		#tag EndGetter
 		LatencyMs As Double
 	#tag EndComputedProperty
+
+	#tag Property, Flags = &h21
+		Private MonitorInterpretsValues As Boolean
+	#tag EndProperty
 
 	#tag Property, Flags = &h21
 		Private PipelineCheckTimer As Timer
@@ -3883,6 +4134,10 @@ Class Redis_MTC
 
 	#tag Property, Flags = &h21
 		Attributes( hidden ) Private zLastCommand As String
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private zLastErrorCode As Integer
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
