@@ -1,6 +1,7 @@
 Type=Desktop
-RBProjectVersion=2019.011
+RBProjectVersion=2020.021
 MinIDEVersion=20070100
+OrigIDEVersion=00000000
 Class=App;App.xojo_code;&h000000007E8A27FF;&h0000000000000000;false
 MenuBar=MainMenuBar;MainMenuBar.xojo_menu;&h00000000609857FF;&h0000000000000000;false
 Window=WndRedisSettings;WndRedisSettings.xojo_window;&h0000000069BF27FF;&h0000000000000000;false
@@ -73,7 +74,7 @@ HiDPI=True
 CopyRedistNextToWindowsEXE=False
 IsWebProject=False
 LinuxBuildArchitecture=1
-MacBuildArchitecture=1
+MacBuildArchitecture=4
 WindowsBuildArchitecture=1
 OptimizationLevel=4
 WindowsVersions={35138b9a-5d96-4fbd-8e2d-a2440225f93a}|{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}|{1f676c76-80e1-4239-95bb-83d0f6d0da78}|{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}
