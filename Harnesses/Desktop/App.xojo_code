@@ -56,19 +56,20 @@ Inherits Application
 			  #else
 			    
 			    dim rx as new RegEx
-			    rx.SearchPattern = "^\x20*Chip: .*\Apple\b"
+			    rx.SearchPattern = "\bApple\b"
 			    
 			    dim sh as new Shell
-			    sh.Execute "/usr/sbin/system_profiler SPHardwareDataType"
+			    sh.Execute "/usr/sbin/sysctl -a | grep brand_string"
 			    
 			    if sh.ErrorCode <> 0 then
 			      dim err as new RuntimeException
 			      err.Message = "Could not run system_profiler"
 			      err.ErrorNumber = sh.ErrorCode
-			      raise err 
+			      raise err
 			    end if
 			    
-			    return rx.Search( sh.Result ) isa RegExMatch
+			    dim result as string = sh.Result.DefineEncoding( Encodings.UTF8 )
+			    return rx.Search( result ) isa RegExMatch
 			    
 			  #endif
 			  
