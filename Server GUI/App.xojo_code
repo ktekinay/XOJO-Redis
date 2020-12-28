@@ -146,6 +146,70 @@ Inherits Application
 		DataFolder As FolderItem
 	#tag EndComputedProperty
 
+	#tag ComputedProperty, Flags = &h21
+		#tag Getter
+			Get
+			  #if not TargetMacOS then
+			    
+			    return false
+			    
+			  #else
+			    
+			    dim rx as new RegEx
+			    rx.SearchPattern = "\bApple\b"
+			    
+			    dim sh as new Shell
+			    sh.Execute "/usr/sbin/sysctl -a | grep brand_string"
+			    
+			    if sh.ErrorCode <> 0 then
+			      dim err as new RuntimeException
+			      err.Message = "Could not run system_profiler"
+			      err.ErrorNumber = sh.ErrorCode
+			      raise err
+			    end if
+			    
+			    dim result as string = sh.Result.DefineEncoding( Encodings.UTF8 )
+			    return rx.Search( result ) isa RegExMatch
+			    
+			  #endif
+			  
+			End Get
+		#tag EndGetter
+		Private IsAppleARM As Boolean
+	#tag EndComputedProperty
+
+	#tag ComputedProperty, Flags = &h21
+		#tag Getter
+			Get
+			  #if not TargetMacOS then
+			    
+			    return false
+			    
+			  #else
+			    
+			    dim rx as new RegEx
+			    rx.SearchPattern = "\bApple\b"
+			    
+			    dim sh as new Shell
+			    sh.Execute "/usr/sbin/sysctl -a | grep brand_string"
+			    
+			    if sh.ErrorCode <> 0 then
+			      dim err as new RuntimeException
+			      err.Message = "Could not run system_profiler"
+			      err.ErrorNumber = sh.ErrorCode
+			      raise err
+			    end if
+			    
+			    dim result as string = sh.Result.DefineEncoding( Encodings.UTF8 )
+			    return rx.Search( result ) isa RegExMatch
+			    
+			  #endif
+			  
+			End Get
+		#tag EndGetter
+		Private IsAppleARM1 As Boolean
+	#tag EndComputedProperty
+
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
@@ -163,7 +227,11 @@ Inherits Application
 			  dim resource as FolderItem
 			  
 			  #if TargetMacOS then
-			    resource = ResourcesFolder.Child( "Redis Server Mac" )
+			    if IsAppleARM then
+			      resource = ResourcesFolder.Child( "Redis Server Mac ARM" )
+			    else
+			      resource = ResourcesFolder.Child( "Redis Server Mac Intel" )
+			    end if
 			  #elseif TargetWindows then
 			    resource = ResourcesFolder.Child( "Redis Server Windows" )
 			  #endif
