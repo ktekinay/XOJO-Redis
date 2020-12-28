@@ -109,7 +109,15 @@ Inherits ConsoleApplication
 		Function NewLocalServer() As RedisServer_MTC
 		  dim serverFile as FolderItem 
 		  #if TargetMacOS then
-		    serverFile = App.ResourcesFolder.Child( "Redis Server Mac" ).Child( "redis-server" )
+		    
+		    dim folderName as string  = "Redis Server Mac "
+		    if IsAppleARM then
+		      folderName = folderName + "ARM"
+		    else
+		      folderName = folderName + "Intel"
+		    end if
+		    
+		    serverFile = App.ResourcesFolder.Child( folderName ).Child( "redis-server" )
 		  #else
 		    serverFile = App.ResourcesFolder.Child( "Redis Server Windows" ).Child( "redis-server.exe" )
 		  #endif
@@ -255,6 +263,38 @@ Inherits ConsoleApplication
 		CommandDict As Dictionary
 	#tag EndProperty
 
+	#tag ComputedProperty, Flags = &h21
+		#tag Getter
+			Get
+			  #if not TargetMacOS then
+			    
+			    return false
+			    
+			  #else
+			    
+			    dim rx as new RegEx
+			    rx.SearchPattern = "\bApple\b"
+			    
+			    dim sh as new Shell
+			    sh.Execute "/usr/sbin/sysctl -a | grep brand_string"
+			    
+			    if sh.ErrorCode <> 0 then
+			      dim err as new RuntimeException
+			      err.Message = "Could not run system_profiler"
+			      err.ErrorNumber = sh.ErrorCode
+			      raise err
+			    end if
+			    
+			    dim result as string = sh.Result.DefineEncoding( Encodings.UTF8 )
+			    return rx.Search( result ) isa RegExMatch
+			    
+			  #endif
+			  
+			End Get
+		#tag EndGetter
+		Private IsAppleARM As Boolean
+	#tag EndComputedProperty
+
 	#tag Property, Flags = &h21
 		Private mController As TestController
 	#tag EndProperty
@@ -327,6 +367,7 @@ Inherits ConsoleApplication
 	#tag ViewBehavior
 		#tag ViewProperty
 			Name="RedisAddress"
+			Visible=false
 			Group="Behavior"
 			InitialValue="localhost"
 			Type="String"
@@ -334,15 +375,19 @@ Inherits ConsoleApplication
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="RedisPassword"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="String"
 			EditorType="MultiLineEditor"
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="RedisPort"
+			Visible=false
 			Group="Behavior"
 			InitialValue="6379"
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 	#tag EndViewBehavior
 End Class
