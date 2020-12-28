@@ -941,7 +941,11 @@ Inherits TestGroup
 		  Assert.AreEqual "SET", command
 		  Assert.AreEqual 3, CType( params.Ubound, Integer ), "Paramer count does not match"
 		  Assert.AreEqual "xut:monitortest-", params( 0 ).Left( 16 ) , "First param does not match"
-		  Assert.AreSame MonitorValue, params( 1 ), "Value not as expected"
+		  if params.Ubound < 1 then
+		    Assert.Fail "Insufficient parameters"
+		  else
+		    Assert.AreSame MonitorValue, params( 1 ), "Value not as expected"
+		  end if
 		  Assert.IsNotNil issuedAt, "Date is nil"
 		  Assert.IsTrue abs( issuedAt.TotalSeconds - now.TotalSeconds ) < 2.0
 		  Assert.AreNotEqual "", fromHost, "No host"
@@ -1068,7 +1072,8 @@ Inherits TestGroup
 		    dim subArr() as variant = v
 		    Assert.AreEqual CType( 3, Int32 ), subArr.Ubound
 		    for x as integer = 0 to subArr.Ubound
-		      Assert.AreEqual "xxx", subArr( x ).StringValue, subArr( x ).StringValue.ToText
+		      const kExpected as string = "xxx"
+		      Assert.AreEqual kExpected, subArr( x ).StringValue, subArr( x ).StringValue
 		    next
 		  next
 		  
