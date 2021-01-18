@@ -887,7 +887,7 @@ Inherits TestGroup
 		  Monitor.StartMonitor false
 		  Assert.Pass "Monitor started"
 		  
-		  MonitorCount = 5000
+		  MonitorCount = kMonitorRawTestCount
 		  for i as integer = 1 to MonitorCount
 		    call r.Set( "xut:monitortest-" + str( i ), MonitorValue, 2000 )
 		  next
@@ -895,7 +895,7 @@ Inherits TestGroup
 		  call r.FlushPipeline( false )
 		  
 		  MonitorValue = "\n\x02abc"
-		  AsyncAwait 5
+		  AsyncAwait 10
 		  
 		End Sub
 	#tag EndMethod
@@ -935,9 +935,14 @@ Inherits TestGroup
 		Private Sub Monitor_MonitorAvailable(sender As Redis_MTC, command As String, params() As String, db As Integer, issuedAt As Date, fromHost As String, fromPort As Integer)
 		  #pragma unused sender
 		  
+		  dim counter as integer = kMonitorRawTestCount - MonitorCount + 1
+		  
 		  dim now as new Date
 		  
 		  Assert.AreEqual db, 1, "Wrong database"
+		  if Assert.Failed then
+		    now = now // A place to break
+		  end if
 		  Assert.AreEqual "SET", command
 		  Assert.AreEqual 3, CType( params.Ubound, Integer ), "Paramer count does not match"
 		  Assert.AreEqual "xut:monitortest-", params( 0 ).Left( 16 ) , "First param does not match"
@@ -956,6 +961,10 @@ Inherits TestGroup
 		    dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		    r.SelectDB 1
 		    call r.Delete( r.Scan( "xut:*" ) )
+		    
+		    RemoveHandler Monitor.MonitorAvailable, WeakAddressOf Monitor_MonitorAvailable
+		    Monitor = nil
+		    
 		    AsyncComplete
 		  end if
 		  
@@ -1924,6 +1933,10 @@ Inherits TestGroup
 	#tag Property, Flags = &h21
 		Private Redis As Redis_MTC
 	#tag EndProperty
+
+
+	#tag Constant, Name = kMonitorRawTestCount, Type = Double, Dynamic = False, Default = \"5000", Scope = Private
+	#tag EndConstant
 
 
 	#tag ViewBehavior
