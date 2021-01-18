@@ -155,59 +155,32 @@ Inherits Application
 			    
 			  #else
 			    
-			    dim rx as new RegEx
-			    rx.SearchPattern = "\bApple\b"
+			    static isComputed as boolean
+			    static isARM as boolean
 			    
-			    dim sh as new Shell
-			    sh.Execute "/usr/sbin/sysctl -a | grep brand_string"
-			    
-			    if sh.ErrorCode <> 0 then
-			      dim err as new RuntimeException
-			      err.Message = "Could not run system_profiler"
-			      err.ErrorNumber = sh.ErrorCode
-			      raise err
+			    if not isComputed then
+			      dim sh as new Shell
+			      sh.Execute "/usr/sbin/sysctl -a | grep 'brand_string'"
+			      
+			      if sh.ErrorCode <> 0 then
+			        dim err as new RuntimeException
+			        err.Message = "Could not run sysctl"
+			        err.ErrorNumber = sh.ErrorCode
+			        raise err
+			      end if
+			      
+			      dim result as string = sh.Result.DefineEncoding( Encodings.UTF8 )
+			      isARM = result.InStr( "Apple" ) <> 0
+			      
+			      isComputed = true
 			    end if
 			    
-			    dim result as string = sh.Result.DefineEncoding( Encodings.UTF8 )
-			    return rx.Search( result ) isa RegExMatch
-			    
+			    return isARM
 			  #endif
 			  
 			End Get
 		#tag EndGetter
 		Private IsAppleARM As Boolean
-	#tag EndComputedProperty
-
-	#tag ComputedProperty, Flags = &h21
-		#tag Getter
-			Get
-			  #if not TargetMacOS then
-			    
-			    return false
-			    
-			  #else
-			    
-			    dim rx as new RegEx
-			    rx.SearchPattern = "\bApple\b"
-			    
-			    dim sh as new Shell
-			    sh.Execute "/usr/sbin/sysctl -a | grep brand_string"
-			    
-			    if sh.ErrorCode <> 0 then
-			      dim err as new RuntimeException
-			      err.Message = "Could not run system_profiler"
-			      err.ErrorNumber = sh.ErrorCode
-			      raise err
-			    end if
-			    
-			    dim result as string = sh.Result.DefineEncoding( Encodings.UTF8 )
-			    return rx.Search( result ) isa RegExMatch
-			    
-			  #endif
-			  
-			End Get
-		#tag EndGetter
-		Private IsAppleARM1 As Boolean
 	#tag EndComputedProperty
 
 	#tag ComputedProperty, Flags = &h0
