@@ -47,7 +47,7 @@ Begin Window WndServer
       LineHeight      =   0.0
       LineSpacing     =   1.0
       LockBottom      =   True
-      LockedInPosition=   False
+      LockedInPosition=   True
       LockLeft        =   True
       LockRight       =   True
       LockTop         =   True
@@ -77,14 +77,13 @@ Begin Window WndServer
    Begin M_Redis.RedisServer_MTC objServer
       ConnectedPort   =   0
       DBFilename      =   ""
-      Enabled         =   True
       ErrorCode       =   0
       Index           =   -2147483648
       IsReady         =   False
       IsRunning       =   False
       LastMessage     =   ""
       LaunchCommand   =   ""
-      LockedInPosition=   False
+      LockedInPosition=   True
       LogLevel        =   "LogLevels.Default"
       PID             =   ""
       Port            =   0
@@ -111,7 +110,7 @@ Begin Window WndServer
       Left            =   100
       LimitText       =   0
       LockBottom      =   False
-      LockedInPosition=   False
+      LockedInPosition=   True
       LockLeft        =   True
       LockRight       =   False
       LockTop         =   True
@@ -147,7 +146,7 @@ Begin Window WndServer
       Italic          =   False
       Left            =   20
       LockBottom      =   False
-      LockedInPosition=   False
+      LockedInPosition=   True
       LockLeft        =   True
       LockRight       =   False
       LockTop         =   True
@@ -184,7 +183,7 @@ Begin Window WndServer
       Italic          =   False
       Left            =   758
       LockBottom      =   False
-      LockedInPosition=   False
+      LockedInPosition=   True
       LockLeft        =   False
       LockRight       =   True
       LockTop         =   True
@@ -216,7 +215,7 @@ Begin Window WndServer
       Left            =   100
       ListIndex       =   0
       LockBottom      =   False
-      LockedInPosition=   False
+      LockedInPosition=   True
       LockLeft        =   True
       LockRight       =   False
       LockTop         =   True
@@ -246,7 +245,7 @@ Begin Window WndServer
       Italic          =   False
       Left            =   20
       LockBottom      =   False
-      LockedInPosition=   False
+      LockedInPosition=   True
       LockLeft        =   True
       LockRight       =   False
       LockTop         =   True
@@ -271,7 +270,7 @@ Begin Window WndServer
    Begin Timer tmrUpdateControls
       Enabled         =   True
       Index           =   -2147483648
-      LockedInPosition=   False
+      LockedInPosition=   True
       Mode            =   2
       Period          =   1000
       Scope           =   2
@@ -280,7 +279,7 @@ Begin Window WndServer
    Begin Timer tmrAfterOpen
       Enabled         =   True
       Index           =   -2147483648
-      LockedInPosition=   False
+      LockedInPosition=   True
       Mode            =   0
       Period          =   20
       Scope           =   2
@@ -720,7 +719,7 @@ End
 		  if rx is nil then
 		    rx = new RegEx
 		    'rx.SearchPattern = "^(?:(.*\x20[[:punct:]]\x20)(.*\R+))|\R+|.+\R*"
-		    rx.SearchPattern = "(?mi-Us)^(\[?\d+(?:\]|:))((\w? )(\d{1,2} \w{3} \d{2}:\d{2}:\d{2}\.\d{3}) [[:punct:]] )?(.+)\R*|^.+\R*|^\R+"
+		    rx.SearchPattern = "(?mi-Us)^(\[?\d+(?:\]|:))((\w? )(\d{1,2} \w{3} (?:\d{4} )?\d{2}:\d{2}:\d{2}\.\d{3}) [[:punct:]] )?(.+)\R*|^.+\R*|^\R+"
 		  end if
 		  
 		  dim textLen as integer = fldOut.Text.Len
