@@ -146,6 +146,43 @@ Inherits Application
 		DataFolder As FolderItem
 	#tag EndComputedProperty
 
+	#tag ComputedProperty, Flags = &h21
+		#tag Getter
+			Get
+			  #if not TargetMacOS then
+			    
+			    return false
+			    
+			  #else
+			    
+			    static isComputed as boolean
+			    static isARM as boolean
+			    
+			    if not isComputed then
+			      dim sh as new Shell
+			      sh.Execute "/usr/sbin/sysctl -a | grep 'brand_string'"
+			      
+			      if sh.ErrorCode <> 0 then
+			        dim err as new RuntimeException
+			        err.Message = "Could not run sysctl"
+			        err.ErrorNumber = sh.ErrorCode
+			        raise err
+			      end if
+			      
+			      dim result as string = sh.Result.DefineEncoding( Encodings.UTF8 )
+			      isARM = result.InStr( "Apple" ) <> 0
+			      
+			      isComputed = true
+			    end if
+			    
+			    return isARM
+			  #endif
+			  
+			End Get
+		#tag EndGetter
+		Private IsAppleARM As Boolean
+	#tag EndComputedProperty
+
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
@@ -163,7 +200,11 @@ Inherits Application
 			  dim resource as FolderItem
 			  
 			  #if TargetMacOS then
-			    resource = ResourcesFolder.Child( "Redis Server Mac" )
+			    if IsAppleARM then
+			      resource = ResourcesFolder.Child( "Redis Server Mac ARM" )
+			    else
+			      resource = ResourcesFolder.Child( "Redis Server Mac Intel" )
+			    end if
 			  #elseif TargetWindows then
 			    resource = ResourcesFolder.Child( "Redis Server Windows" )
 			  #endif

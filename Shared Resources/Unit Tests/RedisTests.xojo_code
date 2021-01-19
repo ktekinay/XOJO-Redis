@@ -887,7 +887,7 @@ Inherits TestGroup
 		  Monitor.StartMonitor false
 		  Assert.Pass "Monitor started"
 		  
-		  MonitorCount = 5000
+		  MonitorCount = kMonitorRawTestCount
 		  for i as integer = 1 to MonitorCount
 		    call r.Set( "xut:monitortest-" + str( i ), MonitorValue, 2000 )
 		  next
@@ -895,7 +895,7 @@ Inherits TestGroup
 		  call r.FlushPipeline( false )
 		  
 		  MonitorValue = "\n\x02abc"
-		  AsyncAwait 5
+		  AsyncAwait 10
 		  
 		End Sub
 	#tag EndMethod
@@ -935,13 +935,22 @@ Inherits TestGroup
 		Private Sub Monitor_MonitorAvailable(sender As Redis_MTC, command As String, params() As String, db As Integer, issuedAt As Date, fromHost As String, fromPort As Integer)
 		  #pragma unused sender
 		  
+		  dim counter as integer = kMonitorRawTestCount - MonitorCount + 1
+		  
 		  dim now as new Date
 		  
 		  Assert.AreEqual db, 1, "Wrong database"
+		  if Assert.Failed then
+		    now = now // A place to break
+		  end if
 		  Assert.AreEqual "SET", command
 		  Assert.AreEqual 3, CType( params.Ubound, Integer ), "Paramer count does not match"
 		  Assert.AreEqual "xut:monitortest-", params( 0 ).Left( 16 ) , "First param does not match"
-		  Assert.AreSame MonitorValue, params( 1 ), "Value not as expected"
+		  if params.Ubound < 1 then
+		    Assert.Fail "Insufficient parameters"
+		  else
+		    Assert.AreSame MonitorValue, params( 1 ), "Value not as expected"
+		  end if
 		  Assert.IsNotNil issuedAt, "Date is nil"
 		  Assert.IsTrue abs( issuedAt.TotalSeconds - now.TotalSeconds ) < 2.0
 		  Assert.AreNotEqual "", fromHost, "No host"
@@ -952,6 +961,10 @@ Inherits TestGroup
 		    dim r as new Redis_MTC( App.RedisPassword, App.RedisAddress, App.RedisPort )
 		    r.SelectDB 1
 		    call r.Delete( r.Scan( "xut:*" ) )
+		    
+		    RemoveHandler Monitor.MonitorAvailable, WeakAddressOf Monitor_MonitorAvailable
+		    Monitor = nil
+		    
 		    AsyncComplete
 		  end if
 		  
@@ -1068,7 +1081,8 @@ Inherits TestGroup
 		    dim subArr() as variant = v
 		    Assert.AreEqual CType( 3, Int32 ), subArr.Ubound
 		    for x as integer = 0 to subArr.Ubound
-		      Assert.AreEqual "xxx", subArr( x ).StringValue, subArr( x ).StringValue.ToText
+		      const kExpected as string = "xxx"
+		      Assert.AreEqual kExpected, subArr( x ).StringValue, subArr( x ).StringValue
 		    next
 		  next
 		  
@@ -1921,22 +1935,34 @@ Inherits TestGroup
 	#tag EndProperty
 
 
+	#tag Constant, Name = kMonitorRawTestCount, Type = Double, Dynamic = False, Default = \"5000", Scope = Private
+	#tag EndConstant
+
+
 	#tag ViewBehavior
 		#tag ViewProperty
 			Name="Duration"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Double"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="FailedTestCount"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="IncludeGroup"
+			Visible=false
 			Group="Behavior"
 			InitialValue="True"
 			Type="Boolean"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Index"
@@ -1944,11 +1970,15 @@ Inherits TestGroup
 			Group="ID"
 			InitialValue="-2147483648"
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="IsRunning"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Boolean"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Left"
@@ -1956,48 +1986,71 @@ Inherits TestGroup
 			Group="Position"
 			InitialValue="0"
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Name"
 			Visible=true
 			Group="ID"
+			InitialValue=""
 			Type="String"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="NotImplementedCount"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="PassedTestCount"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="RunTestCount"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="SkippedTestCount"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="StopTestOnFail"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Boolean"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Super"
 			Visible=true
 			Group="ID"
+			InitialValue=""
 			Type="String"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="TestCount"
+			Visible=false
 			Group="Behavior"
+			InitialValue=""
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Top"
@@ -2005,6 +2058,7 @@ Inherits TestGroup
 			Group="Position"
 			InitialValue="0"
 			Type="Integer"
+			EditorType=""
 		#tag EndViewProperty
 	#tag EndViewBehavior
 End Class
