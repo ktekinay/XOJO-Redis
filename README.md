@@ -120,6 +120,12 @@ The icon was available on [IconFinder](https://www.iconfinder.com/icons/1886359/
 
 ## Release Notes
 
+**1.3** (Jan. 19, 2021)
+
+- Updated redis-server to v.6.0.9.
+- Ready for Apple ARM.
+- Included redis-server for Apple ARM.
+
 **1.2** (Oct. 10, 2019)
 
 - Added `Redis_MTC.StartMonitor` for Monitor mode.

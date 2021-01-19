@@ -3,7 +3,7 @@ Protected Class App
 Inherits Application
 	#tag Event
 		Sub Open()
-		  LocalServer = newLocalServer
+		  LocalServer = NewLocalServer
 		  
 		  XojoUnitTestWindow.Show
 		  WndRedisSettings.Show
@@ -18,7 +18,15 @@ Inherits Application
 		Function NewLocalServer() As RedisServer_MTC
 		  dim serverFile as FolderItem 
 		  #if TargetMacOS then
-		    serverFile = App.ResourcesFolder.Child( "Redis Server Mac" ).Child( "redis-server" )
+		    
+		    dim folderName as string  = "Redis Server Mac "
+		    if IsAppleARM then
+		      folderName = folderName + "ARM"
+		    else
+		      folderName = folderName + "Intel"
+		    end if
+		    
+		    serverFile = App.ResourcesFolder.Child( folderName ).Child( "redis-server" )
 		  #else
 		    serverFile = App.ResourcesFolder.Child( "Redis Server Windows" ).Child( "redis-server.exe" )
 		  #endif
@@ -37,6 +45,43 @@ Inherits Application
 	#tag Property, Flags = &h0
 		CommandDict As Dictionary
 	#tag EndProperty
+
+	#tag ComputedProperty, Flags = &h21
+		#tag Getter
+			Get
+			  #if not TargetMacOS then
+			    
+			    return false
+			    
+			  #else
+			    
+			    static isComputed as boolean
+			    static isARM as boolean
+			    
+			    if not isComputed then
+			      dim sh as new Shell
+			      sh.Execute "/usr/sbin/sysctl -a | grep 'brand_string'"
+			      
+			      if sh.ErrorCode <> 0 then
+			        dim err as new RuntimeException
+			        err.Message = "Could not run sysctl"
+			        err.ErrorNumber = sh.ErrorCode
+			        raise err
+			      end if
+			      
+			      dim result as string = sh.Result.DefineEncoding( Encodings.UTF8 )
+			      isARM = result.InStr( "Apple" ) <> 0
+			      
+			      isComputed = true
+			    end if
+			    
+			    return isARM
+			  #endif
+			  
+			End Get
+		#tag EndGetter
+		Private IsAppleARM As Boolean
+	#tag EndComputedProperty
 
 	#tag Property, Flags = &h0
 		LocalServer As RedisServer_MTC
